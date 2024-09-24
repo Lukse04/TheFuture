@@ -1,0 +1,83 @@
+
+:root {
+    --color-primary: #3346C4;
+    --color-secondary: #21236E;
+    --color-text: #fff;
+    --border-radius: 25px;
+}
+
+section {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-size: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--color-text);
+}
+
+.container {
+    max-width: 380px;
+    width: 100%;
+    padding: 25px 30px;
+    border-radius: var(--border-radius);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    text-align: center;
+}
+
+.container .heading {
+    font-size: 25px;
+    font-weight: 500;
+    position: relative;
+    padding: 0 0 20px 0;
+}
+
+.container form .card-details {
+    margin-top: 25px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.card-details .card-box input {
+    height: 45px;
+    width: 100%;
+    outline: none;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    padding-left: 15px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.card-details .card-box input:focus,
+.card-details .card-box input:valid {
+    border-color: var(--color-primary);
+}
+
+form .button input {
+    padding: 10px 0;
+    margin-top: 10px;
+    width: 100%;
+    outline: none;
+    color: var(--color-text);
+    border: none;
+    font-size: 18px;
+    font-weight: 500;
+    border-radius: 5px;
+    background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
+}
+
+form .button input:hover {
+    background: linear-gradient(-165deg, var(--color-secondary), var(--color-primary));
+}
+
+/* Media Query for Mobile Devices */
+@media (max-width: 600px) {
+    .container {
+        padding: 20px;
+    }
+
+    .card-details .card-box input {
+        font-size: 14px;
+        height: 40px;
+    }
+}

@@ -1,0 +1,83 @@
+
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;900&family=Nunito:wght@400;900&family=Roboto:wght@400;900&display=swap");
+
+:root {
+    --color-primary: #7ed386;
+    --color-secondary: #3fb6a8;
+    --color-text: #fff;
+}
+
+.hero {
+    background: linear-gradient(to right, var(--color-secondary), var(--color-primary));
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.container2 {
+    background: #fff;
+    width: 540px;
+    height: 420px;
+    margin: 0 auto;
+    margin-top: 10px;
+    box-shadow: 2px 5px 20px rgba(119, 119, 119, 0.5);
+    border-radius: 10px;
+}
+
+.logo-profile {
+    float: right;
+    margin-right: 12px;
+    margin-top: 12px;
+    font-family: "Nunito", sans-serif;
+    color: var(--color-primary);
+    font-weight: 900;
+    font-size: 1.5rem;
+}
+
+.leftbox {
+    float: left;
+    top: -5%;
+    left: 5%;
+    position: absolute;
+    width: 15%;
+    height: 110%;
+    background: var(--color-primary);
+    box-shadow: 3px 3px 10px rgba(119, 119, 119, 0.5);
+}
+
+.rightbox {
+    float: right;
+    width: 60%;
+    height: 100%;
+    padding: 20px;
+}
+
+.profile h1 {
+    font-family: "Montserrat", sans-serif;
+    color: var(--color-primary);
+    font-size: 1.5em;
+    margin-top: 40px;
+}
+
+.profile input {
+    width: 80%;
+    padding: 10px;
+    border: 1px solid var(--color-secondary);
+    border-radius: 5px;
+    font-family: "Roboto", sans-serif;
+    margin-bottom: 15px;
+}
+
+/* Media Query for Mobile Devices */
+@media (max-width: 768px) {
+    .container2 {
+        width: 100%;
+        margin-top: 20px;
+    }
+
+    .leftbox, .rightbox {
+        float: none;
+        width: 100%;
+        position: relative;
+        margin-top: 20px;
+    }
+}
