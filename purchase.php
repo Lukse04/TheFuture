@@ -1,8 +1,12 @@
 <?php
-require_once 'includes/dbh.inc.php';
-require_once 'chest_purchase.php'; // Įtraukiame funkcijas, susijusias su chest pirkimu
+// purchase.php
 
-// Patikriname, ar sesija jau aktyvi
+require_once 'includes/dbh.inc.php';
+require_once 'includes/chest_purchase.inc.php'; // Chest purchase functions
+require_once 'includes/xp.inc.php'; // XP functions
+require_once 'includes/user_functions.inc.php'; // User functions
+
+// Pradedame sesiją, jei ji dar nepradėta
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
@@ -14,189 +18,129 @@ if (!isset($_SESSION['userid'])) {
 
 $userId = $_SESSION['userid'];
 
-// Paimame vartotojo XP ir lygio informaciją iš duomenų bazės
-$stmt = $conn->prepare("SELECT xp, level FROM users WHERE usersId = ?");
-$stmt->bind_param('i', $userId);
-$stmt->execute();
-$result = $stmt->get_result();
-$user = $result->fetch_assoc();
+// Gauname vartotojo lygio ir XP informaciją
+$userInfo = getUserLevelInfo($conn, $userId);
+$currentXP = $userInfo['currentXP'];
+$currentLevel = $userInfo['currentLevel'];
+$xpForNextLevel = $userInfo['xpForNextLevel'];
+$xpPercentage = $userInfo['xpPercentage'];
 
-$currentXP = $user['xp'];
-$currentLevel = $user['level'];
-$xpForNextLevel = $currentLevel * 1000; // Pvz., 1000 XP per lygį
-
-// Procentai, kiek XP užpildyta
-$xpPercentage = ($currentXP / $xpForNextLevel) * 100;
-
-$xpGained = 0; // Nustatome pridėtus XP (prieš pirkimą)
+$xpGained = 0; // XP, gautas prieš pirkimą
 $levelUp = false; // Tikriname, ar vartotojas pakėlė lygį
 
-$itemsForSale = [
-    ['name' => 'Basic Chest', 'type' => 'chest', 'level' => 1, 'price' => 100],
-    ['name' => 'Advanced Chest', 'type' => 'chest', 'level' => 2, 'price' => 200],
-    ['name' => 'Epic Chest', 'type' => 'chest', 'level' => 3, 'price' => 500],
-];
+// Funkcija, kuri grąžina parduodamus daiktus
+function getItemsForSale() {
+    return [
+        ['name' => 'Basic Chest', 'type' => 'chest', 'level' => 1, 'price' => 100],
+        ['name' => 'Advanced Chest', 'type' => 'chest', 'level' => 2, 'price' => 200],
+        ['name' => 'Epic Chest', 'type' => 'chest', 'level' => 3, 'price' => 500],
+    ];
+}
+
+$itemsForSale = getItemsForSale();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $itemIndex = $_POST['itemIndex'];
-    $item = $itemsForSale[$itemIndex];
+    // CSRF apsauga
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        die("Klaida: neteisingas CSRF žetonas.");
+    }
 
-    // Patikriname, ar vartotojas turi pakankamai pinigų kortelėje
-    if (checkCardBalance($userId) >= $item['price']) {
-        // Nuskaičiuojame pinigus už pirkimą
-        deductCardBalance($userId, $item['price']);
+    $itemIndex = intval($_POST['itemIndex']);
+    $itemsForSale = getItemsForSale();
 
-        // Pridedame daiktą į inventorių
-        addToInventory($userId, $item['type'], $item['level']);
+    if (isset($itemsForSale[$itemIndex])) {
+        $item = $itemsForSale[$itemIndex];
 
-        // Jei vartotojas perka skrynią, pridedame XP ir tikriname lygį
-        if ($item['type'] === 'chest') {
-            addXpAndCheckLevel($userId); 
-            $xpGained = XP_PER_CHEST; // Pridedame XP vertę
+        // Perkame skrynią
+        $purchaseResult = buyChest($conn, $userId, $item['level'], $item['price']);
 
-            // Patikriname, ar vartotojas pakėlė lygį
-            $stmt = $conn->prepare("SELECT xp, level FROM users WHERE usersId = ?");
-            $stmt->bind_param('i', $userId);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $updatedUser = $result->fetch_assoc();
+        if ($purchaseResult['success']) {
+            $xpGained = $purchaseResult['xpGained'];
+            $levelUp = $purchaseResult['levelUp'];
 
-            if ($updatedUser['level'] > $currentLevel) {
-                $levelUp = true; // Nustatome, kad įvyko lygio pakilimas
-            }
+            // Atnaujiname vartotojo lygio ir XP informaciją
+            $userInfo = updateUserLevelInfo($conn, $userId);
+            $currentXP = $userInfo['currentXP'];
+            $currentLevel = $userInfo['currentLevel'];
+            $xpForNextLevel = $userInfo['xpForNextLevel'];
+            $xpPercentage = $userInfo['xpPercentage'];
+
+            $successMessage = "Sėkmingai nusipirkote {$item['name']}!";
+        } else {
+            $errorMessage = $purchaseResult['error'];
         }
-
-        echo "You have successfully purchased {$item['name']}!";
     } else {
-        echo "Not enough money to purchase {$item['name']}.";
+        $errorMessage = "Neteisingai pasirinktas daiktas.";
     }
 }
+
+// Sukuriame naują CSRF žetoną, jei jo nėra
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+$csrfToken = $_SESSION['csrf_token'];
+
+$conn->close();
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lt">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Purchase Items</title>
-    <style>
-        /* Stilius lygio barui */
-        .level-bar-container {
-            width: 100%;
-            height: 40px;
-            background-color: #e0e0e0;
-            border-radius: 20px;
-            overflow: hidden;
-            position: relative;
-            margin: 20px 0;
-        }
-
-        .level-bar-fill {
-            height: 100%;
-            width: 0;
-            background-color: #4caf50;
-            transition: width 1s ease-in-out;
-            border-radius: 20px;
-        }
-
-        .level-info {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 18px;
-            color: #fff;
-        }
-
-        /* Animacija sėkmingam pirkimui */
-        #successMessage {
-            display: none;
-            font-size: 20px;
-            color: green;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: #dff0d8;
-            padding: 20px;
-            border-radius: 10px;
-            animation: fadeInOut 3s forwards;
-        }
-
-        @keyframes fadeInOut {
-            0% { opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { opacity: 0; }
-        }
-
-        /* Fejerverkų animacija */
-        .firework {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            width: 10px;
-            height: 10px;
-            background-color: red;
-            border-radius: 50%;
-            animation: explode 2s ease-out forwards;
-            display: none;
-        }
-
-        @keyframes explode {
-            0% {
-                width: 10px;
-                height: 10px;
-                opacity: 1;
-            }
-            50% {
-                width: 50px;
-                height: 50px;
-                opacity: 0.5;
-            }
-            100% {
-                width: 100px;
-                height: 100px;
-                opacity: 0;
-            }
-        }
-    </style>
+    <?php
+    $titel = 'Pirkti daiktus';
+    include_once 'include_once/header.php';
+    ?>
+    <link rel="stylesheet" type="text/css" href="css/purchase.css">
 </head>
 <body>
-    <h2>Purchase Items</h2>
+    <?php include_once 'include_once/navbar.php'; ?>
+    <h2>Pirkti daiktus</h2>
 
     <!-- Lygio baras -->
     <div class="level-bar-container">
         <div class="level-bar-fill" id="levelBar"></div>
-        <div class="level-info">Level <?= $currentLevel ?> - <?= round($xpPercentage) ?>%</div>
+        <div class="level-info">Lygis <?= htmlspecialchars($currentLevel) ?> - <?= round($xpPercentage) ?>%</div>
     </div>
 
-    <!-- Sėkmingo pirkimo pranešimas su pridėtu XP -->
-    <div id="successMessage">
-        You have successfully purchased a chest!<br>
-        You gained <?= $xpGained ?> XP!
-    </div>
+    <?php if (isset($successMessage)): ?>
+        <!-- Sėkmingo pirkimo pranešimas su pridėtu XP -->
+        <div class="success-message">
+            <?php echo htmlspecialchars($successMessage); ?><br>
+            Jūs gavote <?= htmlspecialchars($xpGained) ?> XP!
+        </div>
+    <?php endif; ?>
+
+    <?php if (isset($errorMessage)): ?>
+        <!-- Klaidos pranešimas -->
+        <div class="error-message">
+            <?php echo htmlspecialchars($errorMessage); ?>
+        </div>
+    <?php endif; ?>
 
     <!-- Fejerverkų animacija -->
-    <div class="firework" id="firework1"></div>
+    <?php if (isset($levelUp) && $levelUp): ?>
+        <div class="firework" id="firework1"></div>
+    <?php endif; ?>
 
     <form method="POST" action="purchase.php">
-        <table border="1">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken); ?>">
+        <table>
             <tr>
-                <th>Item Name</th>
-                <th>Type</th>
-                <th>Level</th>
-                <th>Price</th>
-                <th>Action</th>
+                <th>Daikto pavadinimas</th>
+                <th>Tipas</th>
+                <th>Lygis</th>
+                <th>Kaina</th>
+                <th>Veiksmas</th>
             </tr>
             <?php foreach ($itemsForSale as $index => $item): ?>
                 <tr>
-                    <td><?= $item['name'] ?></td>
-                    <td><?= ucfirst($item['type']) ?></td>
-                    <td><?= $item['level'] ?></td>
-                    <td><?= $item['price'] ?> coins</td>
+                    <td><?= htmlspecialchars($item['name']) ?></td>
+                    <td><?= ucfirst(htmlspecialchars($item['type'])) ?></td>
+                    <td><?= htmlspecialchars($item['level']) ?></td>
+                    <td><?= htmlspecialchars($item['price']) ?> €</td>
                     <td>
-                        <button type="submit" name="itemIndex" value="<?= $index ?>">Buy</button>
+                        <button type="submit" name="itemIndex" value="<?= $index ?>">Pirkti</button>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -207,13 +151,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Pildome lygio barą pagal procentus
         document.getElementById('levelBar').style.width = "<?= $xpPercentage ?>%";
 
-        // Rodome sėkmingo pirkimo pranešimą, jei buvo pridėti XP
-        <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && $xpGained > 0): ?>
-            document.getElementById("successMessage").style.display = "block";
-        <?php endif; ?>
-
         // Rodome fejerverkus, jei vartotojas pakėlė lygį
-        <?php if ($levelUp): ?>
+        <?php if (isset($levelUp) && $levelUp): ?>
             const firework = document.getElementById("firework1");
             firework.style.display = "block";
             setTimeout(() => {

@@ -1,0 +1,52 @@
+/* css/admin_panel.css */
+
+.success-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 10px;
+    border: 1px solid #c3e6cb;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+/* Papildomi stiliai administratoriaus panele */
+.admin-panel {
+    max-width: 1000px;
+    margin: 50px auto;
+    padding: 30px;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.admin-panel h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.admin-panel table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-panel th, .admin-panel td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.admin-panel th {
+    background-color: #f2f2f2;
+}
+
+.admin-panel tr:hover {
+    background-color: #f1f1f1;
+}
+
+.admin-panel a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.admin-panel a:hover {
+    text-decoration: underline;
+}

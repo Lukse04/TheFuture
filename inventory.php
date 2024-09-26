@@ -1,6 +1,14 @@
 <?php
+// inventory.php
+
 require_once 'includes/dbh.inc.php';
-session_start();
+require_once 'includes/use_item.inc.php';
+require_once 'includes/sell_item.inc.php';
+require_once 'includes/talent_functions.inc.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (!isset($_SESSION['userid'])) {
     die("Jūs nesate prisijungęs!");
@@ -13,11 +21,36 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Užtikriname, kad kintamasis $csrfToken yra priskirtas ir naudojamas tinkamai
 $csrfToken = $_SESSION['csrf_token'];
 
+// Jei tai AJAX užklausa daiktui naudoti
+if (isset($_POST['action']) && $_POST['action'] === 'useItem') {
+    header('Content-Type: application/json');
+    if (!hash_equals($csrfToken, $_POST['csrf_token'])) {
+        echo json_encode(["status" => "error", "message" => "Neteisingas CSRF žymeklis."]);
+        exit();
+    }
+    $itemId = intval($_POST['id']);
+    $result = useItem($conn, $userId, $itemId);
+    echo json_encode($result);
+    exit();
+}
+
+// Jei tai AJAX užklausa daiktui parduoti
+if (isset($_POST['action']) && $_POST['action'] === 'sellItem') {
+    header('Content-Type: application/json');
+    if (!hash_equals($csrfToken, $_POST['csrf_token'])) {
+        echo json_encode(["status" => "error", "message" => "Neteisingas CSRF žymeklis."]);
+        exit();
+    }
+    $itemId = intval($_POST['id']);
+    $result = sellItem($conn, $userId, $itemId);
+    echo json_encode($result);
+    exit();
+}
+
 // Funkcija, kuri ištraukia inventoriaus elementus
-function fetchInventory($conn, $userId, $csrfToken) {
+function fetchInventory($conn, $userId) {
     $stmt = $conn->prepare("SELECT * FROM inventory WHERE user_id = ?");
     $stmt->bind_param('i', $userId);
     $stmt->execute();
@@ -38,8 +71,8 @@ function fetchInventory($conn, $userId, $csrfToken) {
                 <td>$itemLevel</td>
                 <td>$itemPower</td>
                 <td>
-                    <button onclick='useItem({$row['id']}, \"$csrfToken\")'>Naudoti</button> | 
-                    <button onclick='sellItem({$row['id']}, \"$csrfToken\")'>Parduoti</button>
+                    <button onclick='useItem({$row['id']})'>Naudoti</button> | 
+                    <button onclick='sellItem({$row['id']})'>Parduoti</button>
                 </td>
               </tr>";
         }
@@ -49,9 +82,25 @@ function fetchInventory($conn, $userId, $csrfToken) {
     return $inventoryHtml;
 }
 
-if (!isset($_GET['ajax'])) {
-    // Pagrindinis puslapis
+// Jei tai AJAX užklausa inventoriaus atnaujinimui
+if (isset($_GET['ajax']) && $_GET['ajax'] == 1) {
+    echo fetchInventory($conn, $userId);
+    exit();
+}
+
+?>
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+    <?php
+    $titel = 'Jūsų inventorius';
+    include_once 'include_once/header.php';
     ?>
+    <link rel="stylesheet" type="text/css" href="css/inventory.css">
+</head>
+<body>
+    <?php include_once 'include_once/navbar.php'; ?>
+
     <h2>Jūsų inventorius</h2>
     <table>
         <tr>
@@ -62,7 +111,7 @@ if (!isset($_GET['ajax'])) {
             <th>Veiksmai</th>
         </tr>
         <tbody id="inventoryTable">
-            <?php echo fetchInventory($conn, $userId, $csrfToken); ?>
+            <?php echo fetchInventory($conn, $userId); ?>
         </tbody>
     </table>
 
@@ -70,11 +119,12 @@ if (!isset($_GET['ajax'])) {
     <div id="message"></div>
 
     <script>
-    
+    const csrfToken = "<?php echo $csrfToken; ?>";
+
     // Funkcija daiktui naudoti per AJAX
-    function useItem(itemId, csrfToken) {
+    function useItem(itemId) {
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "use_item.php", true);
+        xhr.open("POST", "inventory.php", true);
         xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
         xhr.onreadystatechange = function() {
             if (this.readyState === 4 && this.status === 200) {
@@ -90,13 +140,13 @@ if (!isset($_GET['ajax'])) {
                 }
             }
         };
-        xhr.send("id=" + itemId + "&csrf_token=" + encodeURIComponent(csrfToken));
+        xhr.send("action=useItem&id=" + itemId + "&csrf_token=" + encodeURIComponent(csrfToken));
     }
 
     // Funkcija daiktui parduoti per AJAX
-    function sellItem(itemId, csrfToken) {
+    function sellItem(itemId) {
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "sell_item.php", true);
+        xhr.open("POST", "inventory.php", true);
         xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
         xhr.onreadystatechange = function() {
             if (this.readyState === 4 && this.status === 200) {
@@ -112,7 +162,7 @@ if (!isset($_GET['ajax'])) {
                 }
             }
         };
-        xhr.send("id=" + itemId + "&csrf_token=" + encodeURIComponent(csrfToken));
+        xhr.send("action=sellItem&id=" + itemId + "&csrf_token=" + encodeURIComponent(csrfToken));
     }
 
     // Funkcija, kuri AJAX būdu atnaujina inventorių
@@ -127,46 +177,5 @@ if (!isset($_GET['ajax'])) {
         xhr.send();
     }
     </script>
-
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background-color: #fafafa;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #4CAF50;
-            color: white;
-        }
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
-        }
-        button {
-            background-color: #0077ff;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #005bb5;
-        }
-        #message {
-            margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #0077ff;
-            color: #0077ff;
-        }
-    </style>
-    <?php
-} else {
-    // Kai inventoriaus atnaujinimas siunčiamas per AJAX
-    echo fetchInventory($conn, $userId, $csrfToken);
-}
-?>
+</body>
+</html>
