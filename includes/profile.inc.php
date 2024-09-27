@@ -1,70 +1,51 @@
-
 <?php
+// includes/profile.inc.php
 
 session_start();
 
-if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-    die("CSRF token validation failed");
+if (!isset($_SESSION['userid'])) {
+    header("Location: ../singin.php");
+    exit();
 }
 
-require_once 'dbh.inc.php';
+// Tikriname CSRF žetoną
+if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    header("Location: ../profile.php?error=invalidcsrf");
+    exit();
+}
 
+require_once 'profile_functions.inc.php';
+
+$user_id = $_SESSION["userid"];
+
+// Patikriname, ar forma buvo pateikta
 if (isset($_POST['update_profile'])) {
-    $userId = $_SESSION['userid'];
-    $newUsername = $_POST['new_username'];
-    $newEmail = $_POST['new_email'];
-    $oldPassword = $_POST['old_password'];
-    $newPassword = $_POST['new_password'];
+    // Gauname ir išvalome įvestus duomenis
+    $new_username = trim($_POST['new_username']);
+    $new_email = trim($_POST['new_email']);
+    $old_password = $_POST['old_password'];
+    $new_password = $_POST['new_password'];
 
-    // Validate email domain is "gmail.com"
-    if (strpos($newEmail, 'gmail.com') !== false) {
-        // Prepared statement for checking if the new username exists
-        $stmt = $conn->prepare("SELECT usersName FROM users WHERE usersName = ? AND usersId != ?");
-        $stmt->bind_param('si', $newUsername, $userId);
-        $stmt->execute();
-        $result = $stmt->get_result();
+    // Atnaujiname vartotojo profilį
+    $updateResult = updateUserProfile($conn, $user_id, $new_username, $new_email, $old_password, $new_password);
 
-        if ($result->num_rows > 0) {
-            echo "Error: Username already exists for another user.";
-        } else {
-            // Retrieve the current hashed password
-            $stmt = $conn->prepare("SELECT userspwd FROM users WHERE usersId = ?");
-            $stmt->bind_param('i', $userId);
-            $stmt->execute();
-            $result = $stmt->get_result();
+    if ($updateResult === true) {
+        // Atnaujiname sesijos kintamuosius, jei reikia
+        $_SESSION['username'] = $new_username;
 
-            if ($result->num_rows > 0) {
-                $row = $result->fetch_assoc();
-                $currentHashedPassword = $row['userspwd'];
-
-                // Check if the old password is correct
-                if (password_verify($oldPassword, $currentHashedPassword)) {
-                    // Hash the new password
-                    $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-
-                    // Update the user details
-                    $stmt = $conn->prepare("UPDATE users SET usersName = ?, usersEmail = ?, userspwd = ? WHERE usersId = ?");
-                    $stmt->bind_param('sssi', $newUsername, $newEmail, $hashedPassword, $userId);
-                    
-                    if ($stmt->execute()) {
-                        // Update session username
-                        $_SESSION['username'] = $newUsername;
-                        echo "Profile updated successfully";
-                    } else {
-                        echo "Error updating profile: " . $conn->error;
-                    }
-                } else {
-                    echo "Error: Old password is incorrect.";
-                }
-            } else {
-                echo "Error: User not found.";
-            }
-        }
+        // Grįžtame su sėkmės pranešimu
+        $_SESSION['success'] = "Profilis sėkmingai atnaujintas!";
+        header("Location: ../profile.php");
+        exit();
     } else {
-        echo "Error: Please enter a valid Gmail address.";
+        // Jei yra klaidų, grįžtame su klaidų pranešimais
+        $_SESSION['errors'] = $updateResult;
+        header("Location: ../profile.php");
+        exit();
     }
+
+} else {
+    // Jei prie failo prieinama be formos pateikimo
+    header("Location: ../profile.php");
+    exit();
 }
-
-$conn->close();
-
-?>

@@ -1,5 +1,8 @@
 <?php
+// user_transactions.php
+
 require_once 'includes/dbh.inc.php';
+require_once 'includes/user_transactions.inc.php';
 
 // Pradedame sesiją, jei ji dar nepradėta
 if (session_status() === PHP_SESSION_NONE) {
@@ -8,108 +11,56 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Patikriname, ar vartotojas yra prisijungęs
 if (!isset($_SESSION['userid'])) {
-    die("Klaida: Vartotojas neprisijungęs");
+    header("Location: singin.php");
+    exit();
 }
 
 $userId = $_SESSION['userid'];
 
-// Funkcija pridėti operaciją
-function addTransaction($userId, $currency, $transactionType, $amount) {
-    global $conn;
-
-    // Įrašome operaciją į lentelę user_transactions, įskaitant valiutą
-    $queryInsertTransaction = "
-        INSERT INTO user_transactions (user_id, transaction_type, currency, amount, transaction_date)
-        VALUES (?, ?, ?, ?, NOW())
-    ";
-    $stmt = $conn->prepare($queryInsertTransaction);
-    $stmt->bind_param('issd', $userId, $transactionType, $currency, $amount);
-    $stmt->execute();
-    $stmt->close();
+// Sukuriame CSRF žetoną
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Funkcija pinigų pervedimui pagal piniginės adresą
-function transferFunds($fromUserId, $walletAddress, $currency, $amount) {
-    global $conn;
-
-    // Nustatomas pervedimo mokestis (pvz., Bitcoin valiutai)
-    $transactionFee = 0.001;  // Pervedimo mokestis (1 mBTC Bitcoin)
-
-    // Apskaičiuojama bendra suma, įskaitant mokestį
-    $totalAmount = $amount + $transactionFee;
-
-    // Patikriname, ar vartotojas turi pakankamai lėšų
-    $queryBalanceCheck = "
-        SELECT balance 
-        FROM user_wallets 
-        WHERE user_id = ? AND currency = ?
-    ";
-    $stmt = $conn->prepare($queryBalanceCheck);
-    $stmt->bind_param('is', $fromUserId, $currency);
-    $stmt->execute();
-    $stmt->bind_result($fromUserBalance);
-    $stmt->fetch();
-    $stmt->close();
-
-    if ($fromUserBalance < $totalAmount) {
-        echo "Nepakanka lėšų pervedimui atlikti.";
-        return false;
-    }
-
-    // Patikriname, ar gavėjas egzistuoja pagal piniginės adresą
-    $queryCheckReceiver = "
-        SELECT user_id FROM user_wallets 
-        WHERE wallet_address = ? AND currency = ?
-    ";
-    $stmt = $conn->prepare($queryCheckReceiver);
-    $stmt->bind_param('ss', $walletAddress, $currency);
-    $stmt->execute();
-    $stmt->bind_result($toUserId);
-    $stmt->fetch();
-    $stmt->close();
-
-    if (!$toUserId) {
-        echo "Piniginės adresas nerastas arba neteisinga valiuta.";
-        return false;
-    }
-
-    // Nuskaityti lėšas nuo siuntėjo balanso
-    $queryUpdateSenderBalance = "
-        UPDATE user_wallets 
-        SET balance = balance - ? 
-        WHERE user_id = ? AND currency = ?
-    ";
-    $stmt = $conn->prepare($queryUpdateSenderBalance);
-    $stmt->bind_param('dis', $totalAmount, $fromUserId, $currency);
-    $stmt->execute();
-    $stmt->close();
-
-    // Pridėti lėšas gavėjo balansui
-    $queryUpdateReceiverBalance = "
-        UPDATE user_wallets 
-        SET balance = balance + ? 
-        WHERE user_id = ? AND currency = ?
-    ";
-    $stmt = $conn->prepare($queryUpdateReceiverBalance);
-    $stmt->bind_param('dis', $amount, $toUserId, $currency);
-    $stmt->execute();
-    $stmt->close();
-
-    // Įrašome operacijas į user_transactions lentelę
-    addTransaction($fromUserId, $currency, 'debit', $amount);
-    addTransaction($toUserId, $currency, 'credit', $amount);
-
-    echo "Pervedimas sėkmingai įvykdytas!";
-}
+// Kintamieji pranešimams
+$successMessage = "";
+$errorMessage = "";
 
 // Apdorojame pervedimo formos pateikimą
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $walletAddress = $_POST['wallet_address'];  // Gavėjo piniginės adresas
-    $currency = $_POST['currency'];
-    $amount = floatval($_POST['amount']);
+    // CSRF apsauga
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $errorMessage = "Neteisingas CSRF žetonas.";
+    } else {
+        // Gauname ir išvalome įvestus duomenis
+        $walletAddress = trim($_POST['wallet_address']);
+        $currency = $_POST['currency'];
+        $amount = $_POST['amount'];
 
-    // Iškviečiame pervedimo funkciją pagal piniginės adresą
-    transferFunds($userId, $walletAddress, $currency, $amount);
+        // Įvesties validacija
+        $errors = [];
+        if (empty($walletAddress)) {
+            $errors[] = "Gavėjo piniginės adresas negali būti tuščias.";
+        }
+        if (empty($currency)) {
+            $errors[] = "Pasirinkite valiutą.";
+        }
+        if (empty($amount) || !is_numeric($amount) || $amount <= 0) {
+            $errors[] = "Įveskite teisingą sumą.";
+        }
+
+        if (empty($errors)) {
+            // Iškviečiame pervedimo funkciją pagal piniginės adresą
+            $transferResult = transferFunds($conn, $userId, $walletAddress, $currency, $amount);
+            if ($transferResult['status'] === 'success') {
+                $successMessage = $transferResult['message'];
+            } else {
+                $errorMessage = $transferResult['message'];
+            }
+        } else {
+            $errorMessage = implode("<br>", $errors);
+        }
+    }
 }
 
 // Paimame vartotojo operacijų istoriją
@@ -124,62 +75,83 @@ $stmt = $conn->prepare($queryTransactions);
 $stmt->bind_param('i', $userId);
 $stmt->execute();
 $result = $stmt->get_result();
-
 ?>
 
 <!DOCTYPE html>
 <html lang="lt">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vartotojo operacijos</title>
+    <?php
+    $titel = 'Vartotojo operacijos';
+    include_once 'include_once/header.php';
+    ?>
+    <link rel="stylesheet" type="text/css" href="css/user_transactions.css">
 </head>
 <body>
-    <h1>Vartotojo operacijos</h1>
+    <?php include_once 'include_once/navbar.php'; ?>
 
-    <!-- Forma pinigų pervedimui -->
-    <h2>Pervesti pinigus</h2>
-    <form method="POST" action="">
-        <label for="wallet_address">Gavėjo piniginės adresas:</label>
-        <input type="text" name="wallet_address" id="wallet_address" required><br>
+    <div class="container">
+        <h1>Vartotojo operacijos</h1>
 
-        <label for="currency">Valiuta:</label>
-        <select name="currency" id="currency" required>
-            <option value="Bitcoin">Bitcoin</option>
-            <option value="Ethereum">Ethereum</option>
-            <option value="Tether">Tether</option>
-            <option value="Dogecoin">Dogecoin</option>
-            <option value="Monero">Monero</option>
-        </select><br>
+        <?php if (!empty($successMessage)): ?>
+            <div class="success-message"><?php echo htmlspecialchars($successMessage); ?></div>
+        <?php endif; ?>
 
-        <label for="amount">Suma:</label>
-        <input type="number" step="0.000000001" name="amount" id="amount" required><br>
+        <?php if (!empty($errorMessage)): ?>
+            <div class="error-message"><?php echo $errorMessage; ?></div>
+        <?php endif; ?>
 
-        <button type="submit">Pervesti</button>
-    </form>
+        <!-- Forma pinigų pervedimui -->
+        <h2>Pervesti pinigus</h2>
+        <form method="POST" action="">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <label for="wallet_address">Gavėjo piniginės adresas:</label>
+            <input type="text" name="wallet_address" id="wallet_address" required><br>
 
-    <!-- Operacijų istorija -->
-    <h2>Operacijų istorija</h2>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Operacijos tipas</th>
-                <th>Valiuta</th>
-                <th>Suma</th>
-                <th>Data</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php while ($row = $result->fetch_assoc()): ?>
-            <tr>
-                <td><?php echo $row['transaction_type'] === 'credit' ? 'Įskaitymas' : 'Atskaitymas'; ?></td>
-                <td><?php echo $row['currency']; ?></td>
-                <td><?php echo $row['amount']; ?></td>
-                <td><?php echo $row['transaction_date']; ?></td>
-            </tr>
-            <?php endwhile; ?>
-        </tbody>
-    </table>
+            <label for="currency">Valiuta:</label>
+            <select name="currency" id="currency" required>
+                <option value="">-- Pasirinkite valiutą --</option>
+                <option value="Bitcoin">Bitcoin</option>
+                <option value="Ethereum">Ethereum</option>
+                <option value="Tether">Tether</option>
+                <option value="Dogecoin">Dogecoin</option>
+                <option value="Monero">Monero</option>
+            </select><br>
+
+            <label for="amount">Suma:</label>
+            <input type="number" step="0.000000001" name="amount" id="amount" required><br>
+
+            <button type="submit">Pervesti</button>
+        </form>
+
+        <!-- Operacijų istorija -->
+        <h2>Operacijų istorija</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Operacijos tipas</th>
+                    <th>Valiuta</th>
+                    <th>Suma</th>
+                    <th>Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if ($result->num_rows > 0): ?>
+                    <?php while ($row = $result->fetch_assoc()): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($row['transaction_type'] === 'credit' ? 'Įskaitymas' : 'Nurašymas'); ?></td>
+                        <td><?php echo htmlspecialchars($row['currency']); ?></td>
+                        <td><?php echo htmlspecialchars($row['amount']); ?></td>
+                        <td><?php echo htmlspecialchars($row['transaction_date']); ?></td>
+                    </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="4">Nėra operacijų.</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
 
     <?php $stmt->close(); ?>
     <?php $conn->close(); ?>
