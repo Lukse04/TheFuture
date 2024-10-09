@@ -1,4 +1,3 @@
-
 :root {
     --color-primary: #3346C4;
     --color-secondary: #21236E;
@@ -6,78 +5,144 @@
     --border-radius: 25px;
 }
 
-section {
+* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-size: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: var(--color-text);
 }
 
-.container {
-    max-width: 380px;
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #212529; /* Updated background color */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.signup-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+}
+
+.signup-container {
+    max-width: 400px;
     width: 100%;
-    padding: 25px 30px;
+    padding: 30px;
     border-radius: var(--border-radius);
     background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
     text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.container .heading {
-    font-size: 25px;
-    font-weight: 500;
-    position: relative;
-    padding: 0 0 20px 0;
+.signup-container .heading {
+    font-size: 26px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--color-text);
 }
 
-.container form .card-details {
-    margin-top: 25px;
+.signup-form {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    flex-direction: column;
+    width: 100%;
 }
 
-.card-details .card-box input {
+.signup-form .form-group {
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.signup-form .form-group label {
+    font-size: 14px;
+    color: var(--color-text);
+    display: block;
+    margin-bottom: 5px;
+    text-align: left;
+}
+
+.signup-form .form-group input {
     height: 45px;
     width: 100%;
-    outline: none;
     border-radius: 5px;
     border: 1px solid #ccc;
     padding-left: 15px;
     font-size: 16px;
-    transition: all 0.3s ease;
+    transition: border 0.3s ease;
+    background-color: #fff;
 }
 
-.card-details .card-box input:focus,
-.card-details .card-box input:valid {
+.signup-form .form-group input.valid {
+    background-color: #28a745; /* Green background when valid */
+}
+
+.signup-form .form-group input.invalid {
+    background-color: #dc3545; /* Red background when invalid */
+}
+
+.signup-form .form-group input:focus {
     border-color: var(--color-primary);
-}
-
-form .button input {
-    padding: 10px 0;
-    margin-top: 10px;
-    width: 100%;
     outline: none;
-    color: var(--color-text);
+}
+
+.signup-form button {
+    height: 50px;
+    width: 100%;
     border: none;
-    font-size: 18px;
-    font-weight: 500;
     border-radius: 5px;
-    background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
+    background-color: var(--color-secondary);
+    color: var(--color-text);
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
 }
 
-form .button input:hover {
-    background: linear-gradient(-165deg, var(--color-secondary), var(--color-primary));
+.signup-form button:hover {
+    background-color: var(--color-primary);
 }
 
-/* Media Query for Mobile Devices */
-@media (max-width: 600px) {
-    .container {
-        padding: 20px;
-    }
-
-    .card-details .card-box input {
-        font-size: 14px;
-        height: 40px;
-    }
+footer {
+    text-align: center;
+    padding: 10px;
+    background-color: #333;
+    color: #fff;
 }
+.signup-container .error-message {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    background-color: #f8d7da; /* Light red for errors */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb; /* Border for errors */
+    font-size: 16px;
+    text-align: center; /* Center the text */
+    display: none; /* Hidden by default */
+}
+
+.signup-container .error-message.success {
+    background-color: #d4edda; /* Light green for success */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb;
+}
+
+.signup-container .show {
+    display: block; /* Show the error when the 'show' class is added */
+}
+.signup-container .error-message {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    background-color: #f8d7da !important; /* Ensure background color is applied */
+    color: #721c24 !important; /* Ensure text color is applied */
+    border: 1px solid #f5c6cb !important; /* Ensure border is applied */
+    font-size: 16px;
+    text-align: center;
+    display: none;
+}
+
+.signup-container .show {
+    display: block !important; /* Force display */
+}
+

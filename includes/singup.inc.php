@@ -5,11 +5,15 @@ require 'C:/Users/Lukas/vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-if (isset($_POST["submit"])) {
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+if (isset($_POST["signup_submit"])) {
     session_start();
 
     // Validate CSRF token
-    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         header("location: ../singup.php?error=invalidcsrf");
         exit();
     }
@@ -17,6 +21,7 @@ if (isset($_POST["submit"])) {
     $username = $_POST["username"];
     $email = $_POST["email"];
     $pwd = $_POST["pwd"];
+    $pwdRepeat = $_POST["confirm_password"];
 
     require_once 'dbh.inc.php';
     require_once 'functions.inc.php';
@@ -39,15 +44,32 @@ if (isset($_POST["submit"])) {
         exit();
     }
 
+    // Check if passwords match
+    if ($pwd !== $pwdRepeat) {
+        header("location: ../singup.php?error=passwordmismatch");
+        exit();
+    }
+
     // Generate email verification token
     $token = bin2hex(random_bytes(50));
 
     // Store the user with unverified status
     $sql = "INSERT INTO users (usersName, usersEmail, userspwd, token, is_verified) VALUES (?, ?, ?, ?, 0)";
     $stmt = $conn->prepare($sql);
+    if ($stmt === false) {
+        error_log('Database Error: ' . $conn->error);
+        header("location: ../singup.php?error=dberror");
+        exit();
+    }
+
     $hashedPwd = password_hash($pwd, PASSWORD_DEFAULT);
     $stmt->bind_param("ssss", $username, $email, $hashedPwd, $token);
-    $stmt->execute();
+
+    if ($stmt->execute() === false) {
+        error_log('Database Error: ' . $stmt->error);
+        header("location: ../singup.php?error=dberror");
+        exit();
+    }
 
     $mail = new PHPMailer(true);
 
@@ -61,11 +83,11 @@ if (isset($_POST["submit"])) {
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
 
-        //Recipients
+        // Recipients
         $mail->setFrom('tavo@gmail.com', 'Your App');
         $mail->addAddress($email);
 
-        //Content
+        // Content
         $mail->isHTML(true);
         $mail->Subject = 'Email Verification';
         $mail->Body    = 'Click <a href="http://localhost/verify.php?token=' . $token . '">here</a> to verify your email.';
@@ -73,6 +95,7 @@ if (isset($_POST["submit"])) {
         $mail->send();
         header("location: ../singup.php?success=emailsent");
     } catch (Exception $e) {
+        error_log('Mailer Error: ' . $mail->ErrorInfo);
         header("location: ../singup.php?error=mailerror");
     }
 } else {
