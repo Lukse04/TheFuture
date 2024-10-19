@@ -27,9 +27,9 @@
             <div class="singup-container form-container">
                 <div class="heading">Registruotis</div>
 
-                <!-- Error messages section -->
+                <!-- Pranešimų sekcija -->
                 <?php if (isset($_GET["error"]) || isset($_GET["success"])): ?>
-                <div class="error-message <?php echo isset($_GET["success"]) ? 'success' : 'show'; ?>">
+                <div class="error-message show <?php echo isset($_GET["success"]) ? 'success' : 'error'; ?>">
                     <?php
                         if (isset($_GET["error"])) {
                             switch ($_GET["error"]) {
@@ -75,6 +75,7 @@
                     ?>
                 </div>
                 <?php endif; ?>
+
 
                 <!-- Signup form -->
                 <form action="includes/singup.inc.php" method="post" class="singup-form" novalidate>

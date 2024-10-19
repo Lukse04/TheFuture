@@ -39,7 +39,7 @@
                   </div>
                   <div class="remember-forgot">
                     <label><input type="checkbox" name="remember"> Prisiminti mane</label>
-                    <a href="#">Pamiršote slaptažodį?</a>
+                    <a href="forget_password.php">Pamiršote slaptažodį?</a>
                   </div>
                   <button type="submit" name="submit" class="btn">Prisijungti</button>
                   <div class="register-link">
