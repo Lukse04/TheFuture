@@ -9,7 +9,7 @@ require_once 'includes/admin_panel.inc.php';
 <html lang="lt">
 <head>
     <?php
-    $titel = 'Administratoriaus panelė';
+    $title = 'Administratoriaus panelė';
     include_once 'include_once/header.php';
     ?>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"/>

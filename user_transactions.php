@@ -81,7 +81,7 @@ $result = $stmt->get_result();
 <html lang="lt">
 <head>
     <?php
-    $titel = 'Vartotojo operacijos';
+    $title = 'Vartotojo operacijos';
     include_once 'include_once/header.php';
     ?>
     <link rel="stylesheet" type="text/css" href="css/user_transactions.css">

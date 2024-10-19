@@ -28,7 +28,7 @@ $conn->close();
 <html lang="lt">
 <head>
     <?php
-    $titel = 'Redaguoti vartotoją';
+    $title = 'Redaguoti vartotoją';
     include_once 'include_once/header.php';
     ?>
     <link rel="stylesheet" type="text/css" href="css/edit_user.css">

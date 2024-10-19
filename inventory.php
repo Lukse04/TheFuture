@@ -21,7 +21,7 @@ $csrfToken = $_SESSION['csrf_token'];
 <html lang="lt">
 <head>
     <?php
-    $titel = 'Jūsų inventorius';
+    $title = 'Jūsų inventorius';
     include_once 'include_once/header.php';
     ?>
     <link rel="stylesheet" type="text/css" href="css/inventory.css">

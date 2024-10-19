@@ -88,7 +88,7 @@ $conn->close();
 <html lang="lt">
 <head>
     <?php
-    $titel = 'Pirkti daiktus';
+    $title = 'Pirkti daiktus';
     include_once 'include_once/header.php';
     ?>
     <link rel="stylesheet" type="text/css" href="css/purchase.css">

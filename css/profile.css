@@ -31,6 +31,7 @@ h1, h2 {
     margin-bottom: 10px;
 }
 
+/* Kairiojo bloko (navigacijos) stiliai */
 .leftbox {
     width: 20%;
     background-color: #2c3e50;
@@ -39,22 +40,36 @@ h1, h2 {
 }
 
 .leftbox nav a {
-    display: block;
-    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
     color: #fff;
     text-decoration: none;
 }
 
-.leftbox nav a.active, .leftbox nav a:hover {
+.leftbox nav a i {
+    font-size: 24px;
+}
+
+.leftbox nav a span {
+    margin-top: 5px;
+    font-size: 14px;
+}
+
+.leftbox nav a.active,
+.leftbox nav a:hover {
     background-color: #34495e;
 }
 
+/* Dešiniojo bloko (turinio) stiliai */
 .rightbox {
     width: 80%;
     padding: 40px;
     background-color: #ecf0f1;
 }
 
+/* Asmeninės informacijos formos stiliai */
 .profile h1 {
     margin-bottom: 20px;
 }
@@ -72,7 +87,9 @@ h1, h2 {
     border-radius: 4px;
 }
 
-.button {
+/* Mygtukų stiliai */
+.button,
+.button2 {
     text-align: center;
     margin-top: 20px;
 }
@@ -90,6 +107,20 @@ h1, h2 {
     background-color: #3498db;
 }
 
+.button2 input[type="submit"] {
+    background-color: #CC4B41;
+    color: #fff;
+    padding: 15px 30px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.button2 input[type="submit"]:hover {
+    background-color: #9A392A;
+}
+
+/* Pranešimų stiliai */
 .success-message {
     background-color: #2ecc71;
     color: #fff;
@@ -110,12 +141,101 @@ h1, h2 {
     margin: 0;
 }
 
+/* Responsyvumo stiliai */
 @media (max-width: 768px) {
     .container2 {
         flex-direction: column;
     }
 
-    .leftbox, .rightbox {
+    .leftbox,
+    .rightbox {
         width: 100%;
     }
+}
+
+/* Profilio nuotraukų sekcijos stiliai */
+.profile-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.profile-picture-container {
+    display: inline-block;
+    position: relative;
+}
+
+/* Iš anksto paruoštų nuotraukų stiliai */
+.predefined-pictures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.predefined-pictures label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+}
+
+.avatar-image {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    transition: border 0.3s;
+}
+
+.predefined-pictures input[type="radio"] {
+    display: none;
+}
+
+.predefined-pictures input[type="radio"]:checked + .avatar-image {
+    border-color: #007BFF; /* Paryškiname pasirinktą nuotrauką */
+}
+
+/* Mygtuko stiliai */
+.save-button {
+    background-color: #2980b9; /* Mėlynas fonas */
+    color: #fff; /* Baltas tekstas */
+    padding: 15px 30px; /* Vidiniai tarpai */
+    border: none; /* Pašaliname numatytąjį rėmelį */
+    border-radius: 4px; /* Suapvalinti kampai */
+    cursor: pointer; /* Rodyklės pasikeitimas užvedus pelę */
+    font-size: 16px; /* Teksto dydis */
+    transition: background-color 0.3s; /* Sklandus fono spalvos pasikeitimas */
+    margin-top: 20px; /* Tarpas viršuje */
+}
+
+.save-button:hover {
+    background-color: #3498db; /* Šviesesnis mėlynas užvedus pelę */
+}
+
+
+
+
+
+
+
+
+
+.profile-picture {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid #ccc;
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    transition: transform 0.3s;
+}
+
+.profile-picture:hover {
+    transform: scale(1.05);
+}
+
+.profile-header h1 {
+    margin-top: 10px;
+    font-size: 24px;
+    color: #333;
 }

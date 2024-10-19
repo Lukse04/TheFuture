@@ -1,46 +1,49 @@
-
 <?php
     session_start();
-    // Generate CSRF token
+    // Generuojame CSRF žetoną
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 ?>
 
 <!DOCTYPE HTML>
-<html lang="lt" >
+<html lang="lt">
     <head>
       <?php
-      $titel = 'Here is the future';
+      $title = 'Čia yra ateitis';
       include_once 'include_once/header.php';
       ?>
+      <meta charset="UTF-8">
+      <!-- Pridėkite šriftą Poppins -->
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins&display=swap">
       <link rel="stylesheet" type="text/css" href="css/singin.css">
     </head>
     <body>
-<?php
-include_once 'include_once/navbar.php';
-?>  
+      <?php
+      include_once 'include_once/navbar.php';
+      ?>  
+
+      <div class="main-content">
         <section class="hero">
             <form action="includes/singin.inc.php" method="post">    
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                <div class="box">
-                  <div class="from">
-                    <h2>Sign In</h2>
-                    <div class="inputBox">
-                      <input type="text" name="uid" required="required">
-                      <span>Username</span>
-                      <i></i>
-                    </div>
-                    <div class="inputBox">
-                      <input type="password" name="pwd" required="required">
-                      <span>Password</span>
-                      <i></i>
-                    </div>
-                    <div class="links">
-                      <a href="#">Forgot Password</a>
-                      <a href="singup.php">Sign-up</a>
-                    </div>
-                    <input type="submit" name="submit" value="Sign In">
+                <div class="wrapper">
+                  <h1>Prisijungti</h1>
+                  <div class="input-box">
+                    <input type="text" name="uid" required="required" placeholder="Vartotojo vardas">
+                    <i></i>
+                  </div>
+                  <div class="input-box">
+                    <input type="password" name="pwd" required="required" placeholder="Slaptažodis">
+                    <i></i>
+                  </div>
+                  <div class="remember-forgot">
+                    <label><input type="checkbox" name="remember"> Prisiminti mane</label>
+                    <a href="#">Pamiršote slaptažodį?</a>
+                  </div>
+                  <button type="submit" name="submit" class="btn">Prisijungti</button>
+                  <div class="register-link">
+                    <p>Neturite paskyros? <a href="singup.php">Užsiregistruokite</a></p>
                   </div>
                 </div>
             </form>
@@ -48,14 +51,16 @@ include_once 'include_once/navbar.php';
                 if (isset($_GET["error"])) {
                     switch ($_GET["error"]) {
                         case "emptyinput":
-                            echo "<p>Fill in all Fields</p>";
+                            echo "<p>Užpildykite visus laukus</p>";
                             break;
                         case "wrongsingin":
-                            echo "<p>Incorrect login credentials!</p>";
+                            echo "<p>Neteisingi prisijungimo duomenys!</p>";
                             break;
                     }
                 }
             ?>
         </section>
+      </div>
+      <?php include_once 'include_once/footer.php'; ?>
     </body>
 </html>

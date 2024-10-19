@@ -5,7 +5,7 @@ require_once 'includes/bank.inc.php';
 <html lang="lt">
 <head>
     <?php
-    $titel = 'Banko informacija';
+    $title = 'Banko informacija';
     include_once 'include_once/header.php';
     ?>
     <link rel="stylesheet" type="text/css" href="css/bank.css">

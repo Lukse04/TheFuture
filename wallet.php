@@ -39,7 +39,7 @@ $conn->close();
 <html lang="lt">
 <head>
     <?php
-    $titel = 'Mano piniginės';
+    $title = 'Mano piniginės';
     include_once 'include_once/header.php';
     ?>
     <link rel="stylesheet" type="text/css" href="css/wallet.css">

@@ -7,7 +7,7 @@
 <html lang="lt" >
     <head>
     <?php
-    $titel = 'Here is the future';
+    $title = 'Here is the future';
     include_once 'include_once/header.php';
     ?>
     </head>
@@ -32,6 +32,7 @@ include_once 'include_once/navbar.php';
         ?>    
             &nbsp;
         </section>
+        <?php include_once 'include_once/footer.php'; ?>
     </body>
 </html>
 

@@ -5,4 +5,4 @@
 <title><?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?></title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" crossorigin="anonymous" />
 <link rel="icon" href="image/icon.png" type="image/x-icon">
-<link rel="stylesheet" type="text/css" href="css/style.css">
+
