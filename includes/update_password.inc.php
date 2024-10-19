@@ -13,14 +13,14 @@ if (isset($_POST['token']) && isset($_POST['password'])) {
     $stmt->bind_param('ss', $hashed_password, $token);
     
     if ($stmt->execute()) {
-        echo "Your password has been successfully updated!";
+        header("Location: ../reset_form.php?update=success");
     } else {
-        echo "Failed to update the password. Invalid or expired token.";
+        header("Location: ../reset_form.php?update=failed");
     }
 
     $stmt->close();
     $conn->close();
 } else {
-    echo "Invalid request.";
+    header("Location: ../reset_form.php?update=failed");
 }
 ?>

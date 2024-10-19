@@ -1,3 +1,4 @@
+
 <?php
 // Autoload PHPMailer ir naudokite klases viršuje
 require 'C:/Users/Lukas/vendor/autoload.php';
@@ -29,21 +30,20 @@ if (isset($_POST['email'])) {
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
 
-        // Recipients
-        $mail->setFrom('theateitis@gmail.com', 'Your App');
+        // Recipient
+        $mail->setFrom('noreply@yourwebsite.com', 'Your Website');
         $mail->addAddress($email);
 
         // Content
+        $url = "http://yourwebsite.com/reset_form.php?token=$token";
         $mail->isHTML(true);
-        $mail->Subject = 'Password Reset';
-        $mail->Body    = 'Click <a href="http://localhost/reset_form.php?token=' . $token . '">here</a> to reset your password.';
+        $mail->Subject = 'Reset Your Password';
+        $mail->Body    = "<p>Click <a href='$url'>here</a> to reset your password.</p>";
 
         $mail->send();
-        echo "Password reset link has been sent to your email.";
+        header("Location: ../forget_password.php?reset=success");
     } catch (Exception $e) {
-        echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+        header("Location: ../forget_password.php?reset=failed");
     }
-
-    $stmt->close();
-    $conn->close();
 }
+?>
