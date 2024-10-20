@@ -1,22 +1,13 @@
 <?php
-// inventory.php
+require_once 'includes/auth.inc.php';
 
-session_start();
+check_auth();
 
-if (!isset($_SESSION['userid'])) {
-    die("Jūs nesate prisijungęs!");
-}
+$userId = get_user_id();
 
-$userId = $_SESSION['userid'];
-
-// Sukuriame CSRF apsaugos žymeklį (token)
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-$csrfToken = $_SESSION['csrf_token'];
-
+$csrfToken = generate_csrf_token();
 ?>
+
 <!DOCTYPE html>
 <html lang="lt">
 <head>
@@ -50,7 +41,7 @@ $csrfToken = $_SESSION['csrf_token'];
     <div id="message"></div>
 
     <script>
-    const csrfToken = "<?php echo $csrfToken; ?>";
+    const csrfToken = "<?php echo htmlspecialchars($csrfToken); ?>";
 
     // Funkcija daiktui naudoti per AJAX
     function useItem(itemId) {

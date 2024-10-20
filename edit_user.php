@@ -4,6 +4,17 @@
 // Įtraukite funkcijų failą
 require_once 'includes/edit_user.inc.php';
 
+require_once 'includes/auth.inc.php';
+
+check_auth();
+
+$csrfToken = generate_csrf_token();
+
+if (!is_admin()) {
+    header("Location: no_access.php");
+    exit;
+}
+
 // Patikrinkite, ar vartotojo ID perduotas per GET parametrus
 if (isset($_GET['id'])) {
     $userId = intval($_GET['id']); // Konvertuojame į sveiką skaičių, kad išvengtume saugumo problemų
@@ -40,7 +51,7 @@ $conn->close();
         <h1>Redaguoti vartotoją</h1>
         <form method="post" action="includes/update_user.inc.php">
             <!-- CSRF tokenas -->
-            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
             <input type="hidden" name="usersId" value="<?php echo htmlspecialchars($user['usersId']); ?>">
 
             <label>Vartotojo vardas:</label>

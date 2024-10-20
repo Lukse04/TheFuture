@@ -1,15 +1,12 @@
 <?php
 // includes/profile.inc.php
 
-session_start();
+require_once 'auth.inc.php';
 
-if (!isset($_SESSION['userid'])) {
-    header("Location: ../singin.php");
-    exit();
-}
+check_auth();
 
 // Tikriname CSRF žetoną
-if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+if (!isset($_POST['csrf_token']) || !check_csrf_token($_POST['csrf_token'])) {
     header("Location: ../profile.php?error=invalidcsrf");
     exit();
 }

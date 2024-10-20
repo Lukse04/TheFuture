@@ -2,12 +2,12 @@
 <?php
 
 if (isset($_POST["submit"])) {
-    session_start();
+    require_once '../includes/auth.inc.php';
 
     // Validate CSRF token
-    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    if (!isset($_POST['csrf_token']) || !check_csrf_token($_POST['csrf_token'])) {
         header("location: ../singin.php?error=invalidcsrf");
-        exit();
+        exit;
     }
 
     $username = $_POST["uid"];

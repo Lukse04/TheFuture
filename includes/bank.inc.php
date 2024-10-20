@@ -8,11 +8,12 @@ error_reporting(E_ALL);
 session_start();
 
 // Patikrinkite, ar vartotojo ID yra nustatytas sesijoje
-if (!isset($_SESSION["userid"])) {
-    die("Vartotojo ID nėra nustatytas. Patikrinkite prisijungimą.<br>");
-} else {
-    $userId = $_SESSION["userid"];
-}
+require_once 'auth.inc.php';
+
+check_auth();
+
+$userId = get_user_id();
+
 
 // Įtraukite duomenų bazės prisijungimą
 require_once 'dbh.inc.php';

@@ -6,17 +6,14 @@ require_once 'includes/chest_purchase.inc.php'; // Chest purchase functions
 require_once 'includes/xp.inc.php'; // XP functions
 require_once 'includes/user_functions.inc.php'; // User functions
 
-// Pradedame sesiją, jei ji dar nepradėta
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
 
-if (!isset($_SESSION['userid'])) {
-    header("Location: singin.php");
-    exit();
-}
+require_once 'includes/auth.inc.php';
 
-$userId = $_SESSION['userid'];
+check_auth();
+
+$userId = get_user_id();
+
+$csrfToken = generate_csrf_token();
 
 // Gauname vartotojo lygio ir XP informaciją
 $userInfo = getUserLevelInfo($conn, $userId);
@@ -41,8 +38,8 @@ $itemsForSale = getItemsForSale();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF apsauga
-    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        die("Klaida: neteisingas CSRF žetonas.");
+    if (!isset($_POST['csrf_token']) || !check_csrf_token($_POST['csrf_token'])) {
+        die("Klaida: neteisingas CSRF žymeklis.");
     }
 
     $itemIndex = intval($_POST['itemIndex']);

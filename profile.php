@@ -1,10 +1,11 @@
 <?php
-session_start();
+require_once 'includes/auth.inc.php';
 
-if (!isset($_SESSION['userid'])) {
-    header("Location: signin.php"); // Pataisykite failo pavadinimą, jei reikia
-    exit();
-}
+check_auth();
+
+$userId = get_user_id();
+
+$csrfToken = generate_csrf_token();
 
 require_once 'includes/dbh.inc.php'; // Pridėkite duomenų bazės prisijungimą, jei reikia
 require_once 'includes/profile_functions.inc.php';
@@ -88,7 +89,7 @@ if (isset($_SESSION['active_section'])) {
                 <!-- Asmeninės informacijos sekcija -->
                 <div class="content-section" id="profile-section" style="<?php echo ($activeSection == 'profile-section') ? '' : 'display: none;'; ?>">
                     <form action="includes/profile.inc.php" method="post">
-                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                         <div class="profile">
                             <h1>Asmeninė informacija</h1>
                             <h2>Vartotojo vardas</h2>

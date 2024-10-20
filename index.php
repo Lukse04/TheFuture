@@ -1,5 +1,7 @@
 <?php
-    session_start();
+
+    require_once 'includes/auth.inc.php';
+    
 ?>
 
 <!DOCTYPE HTML>

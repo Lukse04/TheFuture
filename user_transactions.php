@@ -5,22 +5,13 @@ require_once 'includes/dbh.inc.php';
 require_once 'includes/user_transactions.inc.php';
 
 // Pradedame sesiją, jei ji dar nepradėta
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once 'includes/auth.inc.php';
 
-// Patikriname, ar vartotojas yra prisijungęs
-if (!isset($_SESSION['userid'])) {
-    header("Location: singin.php");
-    exit();
-}
+check_auth();
 
-$userId = $_SESSION['userid'];
+$userId = get_user_id();
 
-// Sukuriame CSRF žetoną
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+$csrfToken = generate_csrf_token();
 
 // Kintamieji pranešimams
 $successMessage = "";
@@ -29,8 +20,8 @@ $errorMessage = "";
 // Apdorojame pervedimo formos pateikimą
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF apsauga
-    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        $errorMessage = "Neteisingas CSRF žetonas.";
+    if (!isset($_POST['csrf_token']) || !check_csrf_token($_POST['csrf_token'])) {
+        $errorMessage = "Neteisingas CSRF žymeklis.";
     } else {
         // Gauname ir išvalome įvestus duomenis
         $walletAddress = trim($_POST['wallet_address']);
@@ -103,7 +94,7 @@ $result = $stmt->get_result();
         <!-- Forma pinigų pervedimui -->
         <h2>Pervesti pinigus</h2>
         <form method="POST" action="">
-            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
             <label for="wallet_address">Gavėjo piniginės adresas:</label>
             <input type="text" name="wallet_address" id="wallet_address" required><br>
 

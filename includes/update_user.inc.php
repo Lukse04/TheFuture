@@ -5,15 +5,17 @@
 require_once 'dbh.inc.php';
 
 // Pradėkite sesiją, jei dar nepradėta
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once 'auth.inc.php';
+
+check_auth();
+
+$userId = get_user_id();
 
 // Patikrinkite, ar forma buvo pateikta
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF tokeno tikrinimas
-    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        die("Klaida: neteisingas CSRF tokenas.");
+    if (!isset($_POST['csrf_token']) || !check_csrf_token($_POST['csrf_token'])) {
+        die("Klaida: neteisingas CSRF žetonas.");
     }
 
     // Gaukite ir validuokite įvesties duomenis

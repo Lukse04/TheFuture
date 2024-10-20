@@ -2,6 +2,7 @@
 // includes/inventory.inc.php
 
 require_once 'dbh.inc.php'; // Duomenų bazės ryšys
+require_once 'auth.inc.php'; // Autentifikacijos ir CSRF funkcijos
 
 // Funkcija, kuri ištraukia inventoriaus elementus
 function fetchInventory($conn, $userId) {
@@ -38,14 +39,18 @@ function fetchInventory($conn, $userId) {
 
 // Jei tai AJAX užklausa daiktui naudoti
 if (isset($_POST['action']) && $_POST['action'] === 'useItem') {
-    session_start();
-    header('Content-Type: application/json');
+    require_once 'auth.inc.php';
     require_once 'use_item.inc.php';
-    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    header('Content-Type: application/json');
+
+    check_auth();
+
+    if (!isset($_POST['csrf_token']) || !check_csrf_token($_POST['csrf_token'])) {
         echo json_encode(["status" => "error", "message" => "Neteisingas CSRF žymeklis."]);
         exit();
     }
-    $userId = $_SESSION['userid'];
+
+    $userId = get_user_id();
     $itemId = intval($_POST['id']);
     $result = useItem($conn, $userId, $itemId);
     echo json_encode($result);
@@ -54,14 +59,18 @@ if (isset($_POST['action']) && $_POST['action'] === 'useItem') {
 
 // Jei tai AJAX užklausa daiktui parduoti
 if (isset($_POST['action']) && $_POST['action'] === 'sellItem') {
-    session_start();
-    header('Content-Type: application/json');
+    require_once 'auth.inc.php';
     require_once 'sell_item.inc.php';
-    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    header('Content-Type: application/json');
+
+    check_auth();
+
+    if (!isset($_POST['csrf_token']) || !check_csrf_token($_POST['csrf_token'])) {
         echo json_encode(["status" => "error", "message" => "Neteisingas CSRF žymeklis."]);
         exit();
     }
-    $userId = $_SESSION['userid'];
+
+    $userId = get_user_id();
     $itemId = intval($_POST['id']);
     $result = sellItem($conn, $userId, $itemId);
     echo json_encode($result);
@@ -70,8 +79,12 @@ if (isset($_POST['action']) && $_POST['action'] === 'sellItem') {
 
 // Jei tai AJAX užklausa inventoriaus atnaujinimui
 if (isset($_GET['ajax']) && $_GET['ajax'] == 1) {
-    session_start();
-    $userId = $_SESSION['userid'];
+    require_once 'auth.inc.php';
+
+    check_auth();
+
+    $userId = get_user_id();
     echo fetchInventory($conn, $userId);
     exit();
 }
+?>

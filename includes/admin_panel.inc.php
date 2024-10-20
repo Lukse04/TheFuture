@@ -5,24 +5,13 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Pradėkite sesiją
-session_start();
+require_once 'includes/auth.inc.php';
 
-// CSRF tokeno generavimas
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+check_auth();
 
-// Užtikrinkite, kad vartotojas yra prisijungęs ir yra administratorius
-if (isset($_SESSION['usertype'])) {
-    $mysqliType = $_SESSION['usertype'];
-
-    if ($mysqliType !== 'admin') {
-        header('Location: index.php');
-        exit();
-    }
-} else {
-    header('Location: index.php');
-    exit();
+if (!is_admin()) {
+    header("Location: no_access.php");
+    exit;
 }
 
 // Įtraukite duomenų bazės prisijungimo failą

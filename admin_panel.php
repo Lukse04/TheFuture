@@ -3,6 +3,7 @@
 
 // Įtraukite funkcijų failą
 require_once 'includes/admin_panel.inc.php';
+
 ?>
 
 <!DOCTYPE HTML>

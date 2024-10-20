@@ -1,5 +1,11 @@
 
 <?php
+require_once 'includes/auth.inc.php';
+
+
+
+
+
 if (isset($_GET['token'])) {
     $token = $_GET['token'];
 

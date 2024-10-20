@@ -4,15 +4,9 @@
 // Įtraukite duomenų bazės prisijungimo failą
 require_once 'dbh.inc.php';
 
-// Pradėkite sesiją, jei dar nepradėta
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once 'includes/auth.inc.php';
 
-// CSRF tokeno generavimas
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+check_auth();
 
 // Funkcija vartotojo duomenims gauti
 function getUserDetails($conn, $userId) {

@@ -1,18 +1,23 @@
 <?php
-session_start();
+
 require 'dbh.inc.php'; // Jūsų duomenų bazės prisijungimo failas
 
-// Patikrinkite, ar vartotojas prisijungęs
-if (!isset($_SESSION['userid'])) {
-    header('Location: ../singin.php');
-    exit;
-}
 
-$userId = $_SESSION['userid'];
+require_once 'auth.inc.php';
+
+// Patikrinkite, ar vartotojas prisijungęs
+check_auth();
+
+$userId = get_user_id();
+
+$csrfToken = generate_csrf_token();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Patikrinkite CSRF žetoną (jei naudojate)
-    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    if (!isset($_POST['csrf_token']) || !check_csrf_token($_POST['csrf_token'])) {
+        if (!isset($_SESSION['upload_errors'])) {
+            $_SESSION['upload_errors'] = [];
+        }
         $_SESSION['upload_errors'][] = "Neteisingas CSRF žetonas.";
         header('Location: ../profile.php');
         exit();

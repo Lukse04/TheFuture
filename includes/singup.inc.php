@@ -10,12 +10,12 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 if (isset($_POST["singup_submit"])) {
-    session_start();
+    require_once '../includes/auth.inc.php';
 
     // Validate CSRF token
-    if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        header("location: ../singup.php?error=invalidcsrf");
-        exit();
+    if (!isset($_POST['csrf_token']) || !check_csrf_token($_POST['csrf_token'])) {
+        header("location: ../singin.php?error=invalidcsrf");
+        exit;
     }
 
     $username = $_POST["username"];

@@ -3,18 +3,11 @@
 
 require_once 'includes/wallet.inc.php';
 
-// Pradedame sesiją, jei ji dar nepradėta
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once 'includes/auth.inc.php';
 
-// Patikriname, ar vartotojas yra prisijungęs
-if (!isset($_SESSION['userid'])) {
-    header("Location: singin.php");
-    exit();
-}
+check_auth();
 
-$userId = $_SESSION['userid'];
+$userId = get_user_id();
 
 try {
     // Gauname vartotojo piniginių duomenis

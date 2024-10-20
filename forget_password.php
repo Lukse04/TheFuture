@@ -1,5 +1,10 @@
 
 <?php
+    require_once 'includes/auth.inc.php';
+
+
+
+
     if (isset($_GET['reset'])) {
         if ($_GET['reset'] == "success") {
             echo "<p style='color: green;'>Check your email for a password reset link!</p>";

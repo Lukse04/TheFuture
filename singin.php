@@ -1,9 +1,9 @@
 <?php
-    session_start();
-    // Generuojame CSRF žetoną
-    if (empty($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
+
+  require_once 'includes/auth.inc.php';
+
+  $csrfToken = generate_csrf_token();
+
 ?>
 
 <!DOCTYPE HTML>
@@ -26,7 +26,7 @@
       <div class="main-content">
         <section class="hero">
             <form action="includes/singin.inc.php" method="post">    
-                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                 <div class="wrapper">
                   <h1>Prisijungti</h1>
                   <div class="input-box">

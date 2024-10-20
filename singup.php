@@ -1,10 +1,8 @@
 <!-- singup.php -->
 <?php
-    session_start();
-    // Generate CSRF token
-    if (empty($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
+    require_once 'includes/auth.inc.php';
+
+    $csrfToken = generate_csrf_token();    
 ?>
 <!DOCTYPE HTML>
 <html lang="lt">
@@ -79,7 +77,7 @@
 
                 <!-- Signup form -->
                 <form action="includes/singup.inc.php" method="post" class="singup-form" novalidate>
-                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
 
                     <div class="form-group">
                         <input type="text" id="username" name="username" placeholder="Įveskite savo vartotojo vardą" required>
