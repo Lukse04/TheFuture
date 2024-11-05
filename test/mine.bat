@@ -1,7 +1,7 @@
 @echo off
 setlocal ENABLEDELAYEDEXPANSION
 set "counter=0"
-set "max_count=210000"
+set "max_count=500000"
 
 cd /d "C:\wamp64\www\test\"  REM Pakeiskite į savo projekto kelią
 

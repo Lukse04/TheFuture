@@ -1,18 +1,8 @@
 <?php
 // mine.php
-require '../includes/auth.inc.php'; // Autentifikacijos failas
-require '../includes/dbh.inc.php';   // Duomenų bazės prisijungimo failas
+require '../includes/dbh.inc.php';
 
-// Šis skriptas turėtų būti vykdomas per cron job arba kitokiu būdu periodiškai.
-
-header('Content-Type: text/plain'); // Nesvarbu, galime palikti tekstinį atsakymą
-
-// Funkcijų apibrėžimai
-
-/**
- * Gauti bendrą hash rate kiekvienai kriptovaliutai
- */
-function get_total_hash_rate($conn, $currency) {
+function get_network_hashrate($conn, $currency) {
     $stmt = mysqli_prepare($conn, "
         SELECT SUM(sm.hash_rate * um.quantity) AS total_hash_rate
         FROM user_mining um
@@ -27,266 +17,224 @@ function get_total_hash_rate($conn, $currency) {
     return $total_hash_rate ?? 0;
 }
 
-/**
- * Funkcija apskaičiuoti sudėtingumą pagal tinklo galią ir atnaujinti jį
- */
-function adjust_difficulty($conn, &$limits, $currency) {
-    // Gauti bendrą hash rate tinkle
-    $total_hash_rate = get_total_hash_rate($conn, $currency);
-
-    // Tikslinis blokų generavimo laikas
-    $target_block_time = $limits[$currency]['block_time_seconds'];
-
-    // Nustatyti bazinį sudėtingumą pagal algoritmą
-    switch ($limits[$currency]['mining_algorithm']) {
-        case 'SHA-256':
-            $base_difficulty = 1.0;
-            break;
-        case 'RandomX':
-            $base_difficulty = 1.5;
-            break;
-        case 'Scrypt':
-            $base_difficulty = 0.8;
-            break;
-        default:
-            $base_difficulty = 1.0;
-    }
-
-    // Pritaikyti formulę pagal tinklo hash rate ir tikslinį blokų laiką
-    // 1,000,000 yra skalės faktorius, pritaikykite pagal poreikį
-    $new_difficulty = ($total_hash_rate * $target_block_time) / ($base_difficulty * 1000000);
-
-    // Riboti sudėtingumą tam tikram diapazonui
-    if ($new_difficulty < 1.0) $new_difficulty = 1.0;
-    if ($new_difficulty > 1000.0) $new_difficulty = 1000.0;
-
-    // Atnaujinti sudėtingumą `currency_limits` lentelėje
-    $stmt_update_diff = mysqli_prepare($conn, "
-        UPDATE currency_limits 
-        SET difficulty = ? 
-        WHERE currency = ?
+function get_miners_hashrate($conn, $currency) {
+    $stmt = mysqli_prepare($conn, "
+        SELECT um.user_id, SUM(sm.hash_rate * um.quantity) AS user_hash_rate
+        FROM user_mining um
+        JOIN shop_items sm ON um.item_id = sm.id
+        WHERE sm.cryptocurrency = ?
+        GROUP BY um.user_id
     ");
-    mysqli_stmt_bind_param($stmt_update_diff, "ds", $new_difficulty, $currency);
-    mysqli_stmt_execute($stmt_update_diff);
-    mysqli_stmt_close($stmt_update_diff);
-
-    // Atnaujinti `limits` masyvą
-    $limits[$currency]['difficulty'] = $new_difficulty;
-
-    // Pridėti log'ą apie sudėtingumo pakeitimą
-    file_put_contents('difficulty_log.txt', date('Y-m-d H:i:s') . " - " . $currency . " sudėtingumas pakeistas į " . $new_difficulty . "\n", FILE_APPEND);
-}
-
-/**
- * Funkcija apskaičiuoti, ar blokas iškasta pilnas ar dalinis
- */
-function determine_block_completion($earned, $block_reward) {
-    if ($earned >= $block_reward) {
-        return ['complete' => true, 'earned' => $block_reward];
-    } else {
-        return ['complete' => false, 'earned' => $earned];
-    }
-}
-
-/**
- * Funkcija apskaičiuoti, ar reikalingas halvingas ir jį pritaikyti
- */
-function check_and_apply_halving($conn, &$limits, $currency) {
-    $current_block_count = get_current_block_count($conn, $currency);
-
-    if ($current_block_count >= $limits[$currency]['next_halving_block']) {
-        // Atlikti halvingą: sumažinti blokų apdovanojimą per pusę
-        $new_block_reward = $limits[$currency]['block_reward'] / 2;
-
-        // Atnaujinti `currency_limits` lentelę
-        $stmt_update_limit = mysqli_prepare($conn, "
-            UPDATE currency_limits 
-            SET block_reward = ?, 
-                next_halving_block = next_halving_block + halving_interval
-            WHERE currency = ?
-        ");
-        mysqli_stmt_bind_param($stmt_update_limit, "ds", $new_block_reward, $currency);
-        mysqli_stmt_execute($stmt_update_limit);
-        mysqli_stmt_close($stmt_update_limit);
-
-        // Atnaujinti `limits` masyvą
-        $limits[$currency]['block_reward'] = $new_block_reward;
-        $limits[$currency]['next_halving_block'] += $limits[$currency]['halving_interval'];
-
-        // Pridėti log'ą apie halvingą
-        file_put_contents('halving_log.txt', date('Y-m-d H:i:s') . " - " . $currency . " blokų apdovanojimas sumažintas per pusę iki " . $new_block_reward . "\n", FILE_APPEND);
-    }
-}
-
-/**
- * Gauti dabartinį blokų skaičių tam tikrai kriptovaliutai
- */
-function get_current_block_count($conn, $currency) {
-    $stmt = mysqli_prepare($conn, "SELECT COUNT(*) FROM blocks WHERE currency = ?");
     mysqli_stmt_bind_param($stmt, "s", $currency);
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $count);
-    mysqli_stmt_fetch($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $miners = mysqli_fetch_all($result, MYSQLI_ASSOC);
     mysqli_stmt_close($stmt);
-    return $count;
+    return $miners;
 }
 
-/**
- * Funkcija apskaičiuoti uždirbtą sumą pagal hash rate ir sudėtingumą
- */
-function calculate_earned_amount($total_hash_rate, $block_reward, $difficulty) {
-    // Pritaikyta formulė, kurią galite koreguoti pagal poreikį
-    // Ši formulė gali būti paprasta simuliacija
-    // Pvz., (hash_rate / difficulty) * block_reward per ciklą
-    return ($total_hash_rate / $difficulty) * $block_reward;
-}
-
-// Gauti visų kriptovaliutų kasimo limitus ir sunkumus
 $query_limits = "SELECT * FROM currency_limits WHERE currency IN ('Bitcoin', 'Monero', 'Dogecoin')";
 $result_limits = mysqli_query($conn, $query_limits);
 $currency_limits = mysqli_fetch_all($result_limits, MYSQLI_ASSOC);
 mysqli_free_result($result_limits);
 
-$limits = [];
 foreach ($currency_limits as $limit) {
-    $limits[$limit['currency']] = [
-        'max_mined' => $limit['max_mined'],
-        'block_reward' => $limit['block_reward'],
-        'halving_interval' => $limit['halving_interval'],
-        'next_halving_block' => $limit['next_halving_block'],
-        'mining_algorithm' => $limit['mining_algorithm'],
-        'block_time_seconds' => $limit['block_time_seconds'],
-        'difficulty' => $limit['difficulty']
-    ];
-}
+    $currency = $limit['currency'];
+    $block_reward = (float)$limit['block_reward'];
+    $difficulty = (float)$limit['difficulty'];
+    $target_block_time = (int)$limit['block_time_seconds'];
+    $accumulated_work = (float)$limit['accumulated_work'];
+    $max_mined = $limit['max_mined'] !== null ? (float)$limit['max_mined'] : null;
+    $halving_interval = $limit['halving_interval'];
+    $next_halving_block = $limit['next_halving_block'];
+    $tail_emission_reward = isset($limit['tail_emission_reward']) ? (float)$limit['tail_emission_reward'] : null;
 
-// Gauti visus vartotojus
-$query_users = "SELECT usersId FROM users";
-$result_users = mysqli_query($conn, $query_users);
-$users = mysqli_fetch_all($result_users, MYSQLI_ASSOC);
-mysqli_free_result($result_users);
+    $required_work = $difficulty * pow(2, 32);
 
-// Iteruoti per visus vartotojus
-foreach ($users as $user) {
-    $user_id = $user['usersId'];
+    $network_hashrate = get_network_hashrate($conn, $currency);
 
-    // Gauti vartotojo kasimo įrangą
-    $stmt_mining = mysqli_prepare($conn, "
-        SELECT sm.item_name, sm.hash_rate, um.quantity, sm.cryptocurrency 
-        FROM user_mining um
-        JOIN shop_items sm ON um.item_id = sm.id
-        WHERE um.user_id = ? AND sm.cryptocurrency IN ('Bitcoin', 'Monero', 'Dogecoin')
-    ");
-    mysqli_stmt_bind_param($stmt_mining, "i", $user_id);
-    mysqli_stmt_execute($stmt_mining);
-    $result_mining = mysqli_stmt_get_result($stmt_mining);
-    $mining_items = mysqli_fetch_all($result_mining, MYSQLI_ASSOC);
-    mysqli_stmt_close($stmt_mining);
+    $interval_seconds = 60;
 
-    // Apskaičiuoti bendrą hash rate kiekvienai kriptovaliutai
-    $user_hash_rates = [
-        'Monero' => 0,
-        'Bitcoin' => 0,
-        'Dogecoin' => 0
-    ];
+    $work_done = $network_hashrate * $interval_seconds;
 
-    foreach ($mining_items as $item) {
-        if (isset($user_hash_rates[$item['cryptocurrency']])) {
-            $user_hash_rates[$item['cryptocurrency']] += $item['hash_rate'] * $item['quantity'];
-        }
-    }
+    $accumulated_work += $work_done;
 
-    foreach ($user_hash_rates as $currency => $total_hash_rate) {
-        if ($total_hash_rate > 0 && isset($limits[$currency])) {
-            $block_reward = $limits[$currency]['block_reward'];
-            $difficulty = $limits[$currency]['difficulty'];
+    $blocks_mined = floor($accumulated_work / $required_work);
 
-            // Apskaičiuokite uždirbtą sumą
-            $earned = calculate_earned_amount($total_hash_rate, $block_reward, $difficulty);
+    if ($blocks_mined >= 1) {
+        $accumulated_work -= $blocks_mined * $required_work;
 
-            // Gauti jau iškasta suma
-            $stmt_mined = mysqli_prepare($conn, "
-                SELECT SUM(amount) as total_mined 
-                FROM mining_logs 
-                WHERE user_id = ? AND currency = ?
-            ");
-            mysqli_stmt_bind_param($stmt_mined, "is", $user_id, $currency);
-            mysqli_stmt_execute($stmt_mined);
-            mysqli_stmt_bind_result($stmt_mined, $total_mined);
-            mysqli_stmt_fetch($stmt_mined);
-            mysqli_stmt_close($stmt_mined);
+        $miners = get_miners_hashrate($conn, $currency);
 
-            $total_mined = $total_mined ?? 0;
+        $total_hashrate = array_sum(array_column($miners, 'user_hash_rate'));
 
-            // Patikrinti, ar dar galima kasinti
-            if ($total_mined >= $limits[$currency]['max_mined']) {
-                continue; // Pasiekta maksimali suma
+        for ($i = 0; $i < $blocks_mined; $i++) {
+            if ($max_mined !== null && $currency !== 'Monero' && $currency !== 'Dogecoin') {
+                $stmt_total_mined = mysqli_prepare($conn, "SELECT SUM(amount) FROM mining_logs WHERE currency = ?");
+                mysqli_stmt_bind_param($stmt_total_mined, "s", $currency);
+                mysqli_stmt_execute($stmt_total_mined);
+                mysqli_stmt_bind_result($stmt_total_mined, $total_mined);
+                mysqli_stmt_fetch($stmt_total_mined);
+                mysqli_stmt_close($stmt_total_mined);
+
+                $total_mined = $total_mined ?? 0;
+
+                if ($total_mined >= $max_mined) {
+                    break;
+                }
             }
 
-            // Apskaičiuoti, kiek galima kasinti
-            $remaining = $limits[$currency]['max_mined'] - $total_mined;
-            if ($earned > $remaining) {
-                $earned = $remaining;
-            }
+            foreach ($miners as $miner) {
+                $user_id = $miner['user_id'];
+                $user_hashrate = $miner['user_hash_rate'];
 
-            // Apskaičiuoti, ar blokas iškasta pilnas ar dalinis
-            $block_info = determine_block_completion($earned, $block_reward);
-            $block_complete = $block_info['complete'];
-            $earned_amount = $block_info['earned'];
+                $user_share = $user_hashrate / $total_hashrate;
 
-            // Priskirti iškasėtą sumą
-            if ($earned_amount > 0) {
-                mysqli_begin_transaction($conn);
+                $user_reward = $user_share * $block_reward;
 
-                try {
-                    // Atnaujinti vartotojo piniginę
+                if ($max_mined !== null && $currency !== 'Monero' && $currency !== 'Dogecoin') {
+                    $stmt_user_mined = mysqli_prepare($conn, "SELECT SUM(amount) FROM mining_logs WHERE user_id = ? AND currency = ?");
+                    mysqli_stmt_bind_param($stmt_user_mined, "is", $user_id, $currency);
+                    mysqli_stmt_execute($stmt_user_mined);
+                    mysqli_stmt_bind_result($stmt_user_mined, $user_total_mined);
+                    mysqli_stmt_fetch($stmt_user_mined);
+                    mysqli_stmt_close($stmt_user_mined);
+
+                    $user_total_mined = $user_total_mined ?? 0;
+
+                    $remaining_user = $max_mined - $user_total_mined;
+                    if ($remaining_user <= 0) {
+                        continue;
+                    }
+
+                    if ($user_reward > $remaining_user) {
+                        $user_reward = $remaining_user;
+                    }
+                }
+
+                if ($user_reward > 0) {
                     $stmt_update_wallet = mysqli_prepare($conn, "
-                        UPDATE user_wallets 
-                        SET balance = balance + ? 
-                        WHERE user_id = ? AND currency = ?
+                        INSERT INTO user_wallets (user_id, currency, balance, wallet_address)
+                        VALUES (?, ?, ?, 'generated_wallet_address')
+                        ON DUPLICATE KEY UPDATE balance = balance + ?
                     ");
-                    mysqli_stmt_bind_param($stmt_update_wallet, "dis", $earned_amount, $user_id, $currency);
+                    mysqli_stmt_bind_param($stmt_update_wallet, "isdd", $user_id, $currency, $user_reward, $user_reward);
                     mysqli_stmt_execute($stmt_update_wallet);
                     mysqli_stmt_close($stmt_update_wallet);
 
-                    // Įrašyti kasimo įrašą
                     $stmt_log = mysqli_prepare($conn, "
-                        INSERT INTO mining_logs (user_id, currency, amount, timestamp) 
+                        INSERT INTO mining_logs (user_id, currency, amount, timestamp)
                         VALUES (?, ?, ?, NOW())
                     ");
-                    mysqli_stmt_bind_param($stmt_log, "isd", $user_id, $currency, $earned_amount);
+                    mysqli_stmt_bind_param($stmt_log, "isd", $user_id, $currency, $user_reward);
                     mysqli_stmt_execute($stmt_log);
                     mysqli_stmt_close($stmt_log);
+                }
+            }
 
-                    // Jei blokas iškasta pilnas, įrašyti bloką į `blocks` lentelę
-                    if ($block_complete) {
-                        $stmt_block = mysqli_prepare($conn, "
-                            INSERT INTO blocks (currency, user_id, hash_rate, block_reward, timestamp)
-                            VALUES (?, ?, ?, ?, NOW())
-                        ");
-                        mysqli_stmt_bind_param($stmt_block, "sidd", $currency, $user_id, $total_hash_rate, $earned_amount);
-                        mysqli_stmt_execute($stmt_block);
-                        mysqli_stmt_close($stmt_block);
+            $stmt_block = mysqli_prepare($conn, "
+                INSERT INTO blocks (currency, user_id, hash_rate, block_reward, timestamp)
+                VALUES (?, 0, ?, ?, NOW())
+            ");
+            mysqli_stmt_bind_param($stmt_block, "sdd", $currency, $network_hashrate, $block_reward);
+            mysqli_stmt_execute($stmt_block);
+            mysqli_stmt_close($stmt_block);
 
-                        // Patikrinti ir pritaikyti halvingą, jei reikia
-                        check_and_apply_halving($conn, $limits, $currency);
+            $stmt_count_blocks = mysqli_prepare($conn, "SELECT COUNT(*) FROM blocks WHERE currency = ?");
+            mysqli_stmt_bind_param($stmt_count_blocks, "s", $currency);
+            mysqli_stmt_execute($stmt_count_blocks);
+            mysqli_stmt_bind_result($stmt_count_blocks, $block_count);
+            mysqli_stmt_fetch($stmt_count_blocks);
+            mysqli_stmt_close($stmt_count_blocks);
+
+            if ($currency === 'Dogecoin' || $currency === 'Monero') {
+                $stmt_block_time = mysqli_prepare($conn, "
+                    SELECT timestamp FROM blocks WHERE currency = ? ORDER BY id DESC LIMIT 2
+                ");
+                mysqli_stmt_bind_param($stmt_block_time, "s", $currency);
+                mysqli_stmt_execute($stmt_block_time);
+                $result_block_time = mysqli_stmt_get_result($stmt_block_time);
+                $timestamps = mysqli_fetch_all($result_block_time, MYSQLI_ASSOC);
+                mysqli_stmt_close($stmt_block_time);
+
+                if (count($timestamps) == 2) {
+                    $latest_time = strtotime($timestamps[0]['timestamp']);
+                    $previous_time = strtotime($timestamps[1]['timestamp']);
+                    $actual_time = $latest_time - $previous_time;
+                    if ($actual_time == 0) {
+                        $actual_time = 1;
+                    }
+                    $new_difficulty = $difficulty * ($target_block_time / $actual_time);
+                    if ($new_difficulty < 1) {
+                        $new_difficulty = 1;
+                    }
+                    $difficulty = $new_difficulty;
+                }
+            } else {
+                if ($block_count % 2016 == 0) {
+                    $stmt_block_time = mysqli_prepare($conn, "
+                        SELECT MIN(timestamp) as min_time, MAX(timestamp) as max_time FROM (
+                            SELECT timestamp FROM blocks WHERE currency = ? ORDER BY id DESC LIMIT 2016
+                        ) as recent_blocks
+                    ");
+                    mysqli_stmt_bind_param($stmt_block_time, "s", $currency);
+                    mysqli_stmt_execute($stmt_block_time);
+                    mysqli_stmt_bind_result($stmt_block_time, $min_time, $max_time);
+                    mysqli_stmt_fetch($stmt_block_time);
+                    mysqli_stmt_close($stmt_block_time);
+
+                    $actual_time = strtotime($max_time) - strtotime($min_time);
+                    if ($actual_time == 0) {
+                        $actual_time = 1;
+                    }
+                    $target_time = $target_block_time * 2016;
+
+                    $new_difficulty = $difficulty * ($actual_time / $target_time);
+                    if ($new_difficulty < 1) {
+                        $new_difficulty = 1;
                     }
 
-                    // Dinaminio sudėtingumo reguliavimas
-                    adjust_difficulty($conn, $limits, $currency);
+                    $difficulty = $new_difficulty;
+                }
+            }
 
-                    // Pridėti log'ą apie kasimą
-                    file_put_contents('mining_log.txt', date('Y-m-d H:i:s') . " - User ID: $user_id, Currency: $currency, Earned: $earned_amount, Block Complete: " . ($block_complete ? 'Yes' : 'No') . "\n", FILE_APPEND);
+            if ($currency === 'Monero') {
+                $stmt_total_mined = mysqli_prepare($conn, "SELECT SUM(amount) FROM mining_logs WHERE currency = ?");
+                mysqli_stmt_bind_param($stmt_total_mined, "s", $currency);
+                mysqli_stmt_execute($stmt_total_mined);
+                mysqli_stmt_bind_result($stmt_total_mined, $total_mined);
+                mysqli_stmt_fetch($stmt_total_mined);
+                mysqli_stmt_close($stmt_total_mined);
 
-                    mysqli_commit($conn);
-                } catch (Exception $e) {
-                    mysqli_rollback($conn);
-                    // Pridėti klaidų log'ą
-                    file_put_contents('error_log.txt', date('Y-m-d H:i:s') . " - Mining failed for User ID: $user_id, Currency: $currency. Error: " . $e->getMessage() . "\n", FILE_APPEND);
+                $total_mined = $total_mined ?? 0;
+
+                if ($total_mined < 18400000) {
+                    $block_reward = (18400000 - $total_mined) / 218750;
+                    if ($block_reward < 0.6) {
+                        $block_reward = 0.6;
+                    }
+                } else {
+                    $block_reward = 0.6;
+                }
+            } elseif ($currency !== 'Dogecoin' && $halving_interval !== null && $next_halving_block !== null) {
+                if ($block_count >= $next_halving_block) {
+                    $new_block_reward = $block_reward / 2;
+                    if ($new_block_reward < 0.00000001) {
+                        $new_block_reward = 0.00000001;
+                    }
+                    $block_reward = $new_block_reward;
+                    $next_halving_block += $halving_interval;
                 }
             }
         }
     }
+
+    $stmt_update_work = mysqli_prepare($conn, "
+        UPDATE currency_limits SET accumulated_work = ?, difficulty = ?, block_reward = ?, next_halving_block = ? WHERE currency = ?
+    ");
+    mysqli_stmt_bind_param($stmt_update_work, "dddis", $accumulated_work, $difficulty, $block_reward, $next_halving_block, $currency);
+    mysqli_stmt_execute($stmt_update_work);
+    mysqli_stmt_close($stmt_update_work);
 }
 
 echo "Kasimo procesas baigtas " . date('Y-m-d H:i:s') . "\n";

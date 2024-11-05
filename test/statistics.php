@@ -1,12 +1,9 @@
 <?php
 // statistics.php
-require '../includes/auth.inc.php'; // Autentifikacijos failas
-require '../includes/dbh.inc.php';   // Duomenų bazės prisijungimo failas
+require '../includes/auth.inc.php';
+require '../includes/dbh.inc.php';
 
-// Patikrinkite, ar vartotojas yra prisijungęs
 check_auth();
-
-// Pagrindiniai duomenys gali būti palikti tuščia, nes duomenys bus užkraunami per AJAX
 ?>
 <!DOCTYPE html>
 <html lang="lt">
@@ -23,7 +20,6 @@ check_auth();
         .error { color: red; }
         .success { color: green; }
     </style>
-    <!-- Įtraukite jQuery biblioteką -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
@@ -34,47 +30,40 @@ check_auth();
         <thead>
             <tr>
                 <th>Valiuta</th>
-                <th>Kasinta per Valandą</th>
-                <th>Kasinta per Dieną</th>
-                <th>Kasinta per Savaitę</th>
                 <th>Liko Iškasti</th>
                 <th>Dabartinis Blokų Apdovanojimas</th>
                 <th>Blokų Skaičius</th>
+                <th>Sunkumas</th>
             </tr>
         </thead>
         <tbody>
-            <!-- Dinamiškai pridedami duomenys per AJAX -->
         </tbody>
     </table>
 </div>
 
 <script>
 $(document).ready(function() {
-    // Funkcija duomenims gauti ir atnaujinti
     function updateStatistics() {
         $.ajax({
             url: 'get_statistics.php',
             method: 'GET',
             dataType: 'json',
             success: function(data) {
-                // Atnaujinti statistikos lentelę
                 var tbody = $('#statistics-table tbody');
                 tbody.empty();
                 $.each(data.stats, function(currency, stats) {
+                    var remaining = stats.remaining !== null ? parseFloat(stats.remaining).toFixed(8) : 'Neribota';
+                    var block_reward = parseFloat(stats.block_reward).toFixed(8);
+                    var difficulty = parseFloat(stats.difficulty).toFixed(8);
                     var row = '<tr>' +
-                        '<td>' + htmlspecialchars(currency) + '</td>' +
-                        '<td>' + number_format(stats.hourly, 9) + '</td>' +
-                        '<td>' + number_format(stats.daily, 9) + '</td>' +
-                        '<td>' + number_format(stats.weekly, 9) + '</td>' +
-                        '<td>' + number_format(stats.remaining, 9) + '</td>' +
-                        '<td>' + number_format(stats.block_reward, 8) + ' ' + htmlspecialchars(currency) + '</td>' +
+                        '<td>' + currency + '</td>' +
+                        '<td>' + remaining + '</td>' +
+                        '<td>' + block_reward + ' ' + currency + '</td>' +
                         '<td>' + stats.current_block_count + '</td>' +
+                        '<td>' + difficulty + '</td>' +
                         '</tr>';
                     tbody.append(row);
                 });
-
-                // Jei norite rodyti bendrą pinigų sumą, galite pridėti papildomą elementą
-                // Šiuo atveju, pašalinome „Papildoma Statistika“ sekciją
             },
             error: function(xhr) {
                 console.error('Klaida gaunant statistiką:', xhr.responseText);
@@ -82,20 +71,9 @@ $(document).ready(function() {
         });
     }
 
-    // Funkcijos HTML specialių simbolių kodavimui ir skaičių formatavimui
-    function htmlspecialchars(text) {
-        return $('<div>').text(text).html();
-    }
-
-    function number_format(number, decimals) {
-        return Number(number).toFixed(decimals);
-    }
-
-    // Atlikti pirmą atnaujinimą, kai puslapis įkeliamas
     updateStatistics();
 
-    // Nustatyti intervalą, kas 10 sekundžių atnaujinti statistiką
-    setInterval(updateStatistics, 10000); // 10000 milisekundžių = 10 sekundžių
+    setInterval(updateStatistics, 60000);
 });
 </script>
 

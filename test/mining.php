@@ -1,12 +1,10 @@
 <?php
-// mining.php (Front-end puslapis)
-require '../includes/auth.inc.php'; // Autentifikacijos failas
-require '../includes/dbh.inc.php';   // Duomenų bazės prisijungimo failas
+// mining.php
+require '../includes/auth.inc.php';
+require '../includes/dbh.inc.php';
 
-// Patikrinkite, ar vartotojas yra prisijungęs
 check_auth();
 
-// Generuokite CSRF žetoną
 $csrf_token = generate_csrf_token();
 ?>
 <!DOCTYPE html>
@@ -35,17 +33,9 @@ $csrf_token = generate_csrf_token();
 
     <div id="mining-info">
         <h2>Bendra hash rate:</h2>
-        <ul id="total-hash-rates">
-            <!-- Dinamiškai pridedami hash rate kiekvienai kriptovaliutai -->
-        </ul>
+        <ul id="total-hash-rates"></ul>
         <h3>Kasimo įranga:</h3>
-        <ul id="mining-items">
-            <!-- Dinamiškai pridedami įrenginiai -->
-        </ul>
-        <h3>Blokų Apdovanojimai:</h3>
-        <ul id="block-rewards">
-            <!-- Dinamiškai pridedami blokų apdovanojimai -->
-        </ul>
+        <ul id="mining-items"></ul>
     </div>
 
     <div id="purchase-section">
@@ -54,13 +44,11 @@ $csrf_token = generate_csrf_token();
             <label for="shop-items">Pasirinkite įrangą:</label>
             <select id="shop-items" name="item_id" required>
                 <option value="">Pasirinkite įrangą</option>
-                <!-- Dinamiškai pridedami įrenginiai -->
             </select>
             <br><br>
             <label for="quantity">Kiekis:</label>
             <input type="number" id="quantity" name="quantity" min="1" value="1" required>
             <br><br>
-            <!-- Paslėptas CSRF žetonas -->
             <input type="hidden" id="csrf_token" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
             <button type="submit" id="buy-button">Pirkti</button>
         </form>
@@ -82,22 +70,13 @@ function fetchMiningInfo() {
         success: function(data) {
             $('#total-hash-rates').empty();
             for (const [currency, hash_rate] of Object.entries(data.total_hash_rates)) {
-                $('#total-hash-rates').append('<li>' + currency + ': ' + hash_rate.toFixed(2) + ' TH/s</li>');
+                $('#total-hash-rates').append('<li>' + currency + ': ' + hash_rate.toFixed(2) + ' H/s</li>');
             }
 
             $('#mining-items').empty();
             data.mining_items.forEach(function(item) {
-                $('#mining-items').append('<li>' + item.item_name + ' - ' + item.hash_rate + ' TH/s x ' + item.quantity + ' (' + item.cryptocurrency + ')</li>');
+                $('#mining-items').append('<li>' + item.item_name + ' - ' + item.hash_rate + ' H/s x ' + item.quantity + ' (' + item.cryptocurrency + ')</li>');
             });
-
-            // Parodyti blokų apdovanojimus ir algoritmus
-            $('#block-rewards').empty();
-            var block_rewards = data.block_rewards;
-            var mining_algorithms = data.mining_algorithms;
-            var block_times = data.block_times;
-            for (const [currency, reward] of Object.entries(block_rewards)) {
-                $('#block-rewards').append('<li>' + currency + ': ' + reward.toFixed(8) + ' (' + mining_algorithms[currency] + ', Bloko Laikas: ' + block_times[currency] + ' sek.)</li>');
-            }
         },
         error: function(xhr) {
             console.error('Klaida gaunant kasimo informaciją:', xhr.responseText);
@@ -112,7 +91,7 @@ function fetchShopItems() {
         dataType: 'json',
         success: function(data) {
             $('#shop-items').empty();
-            $('#shop-items').append('<option value="">Pasirinkite įrangą</option>'); // Pridėti pradžios opciją
+            $('#shop-items').append('<option value="">Pasirinkite įrangą</option>');
             data.shop_items.forEach(function(item) {
                 $('#shop-items').append('<option value="' + item.id + '">' + item.item_name + ' - ' + item.price + ' ' + item.currency + ' (' + item.cryptocurrency + '), Efektyvumas: ' + item.efficiency + ', Algoritmai: ' + item.supported_algorithms.join(', ') + '</option>');
             });
@@ -127,9 +106,8 @@ $(document).ready(function() {
     fetchMiningInfo();
     fetchShopItems();
 
-    // Pirkti įrangą
     $('#purchase-form').submit(function(event) {
-        event.preventDefault(); // Užkirsti kelią standartiniam formos pateikimui
+        event.preventDefault();
 
         var item_id = $('#shop-items').val();
         var quantity = $('#quantity').val();
@@ -158,7 +136,6 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     $('#purchase-result').text(response.success).removeClass('error').addClass('success');
-                    // Atnaujinti kasimo informaciją
                     fetchMiningInfo();
                 } else if (response.error) {
                     $('#purchase-result').text('Klaida: ' + response.error).removeClass('success').addClass('error');
@@ -174,8 +151,7 @@ $(document).ready(function() {
         });
     });
 
-    // Atnaujinti kasimo informaciją kas 10 sekundžių
-    setInterval(fetchMiningInfo, 10000);
+    setInterval(fetchMiningInfo, 60000);
 });
 </script>
 
