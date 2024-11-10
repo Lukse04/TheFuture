@@ -9,13 +9,11 @@ check_auth();
 
 $user_id = get_user_id();
 
-// Get mining equipment assigned to facilities
 $stmt_mining = mysqli_prepare($conn, "
-    SELECT sm.item_name, sm.hash_rate, ea.quantity, sm.cryptocurrency, f.name as facility_name
-    FROM equipment_assignments ea
-    JOIN shop_items sm ON ea.item_id = sm.id
-    JOIN facilities f ON ea.facility_id = f.id
-    WHERE ea.user_id = ?
+    SELECT sm.item_name, sm.hash_rate, um.quantity, sm.cryptocurrency 
+    FROM user_mining um
+    JOIN shop_items sm ON um.item_id = sm.id
+    WHERE um.user_id = ? AND sm.cryptocurrency IN ('Bitcoin', 'Monero', 'Dogecoin')
 ");
 mysqli_stmt_bind_param($stmt_mining, "i", $user_id);
 mysqli_stmt_execute($stmt_mining);

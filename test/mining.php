@@ -14,41 +14,50 @@ $csrf_token = generate_csrf_token();
     <title>Bitcoin, Monero ir Dogecoin Kasimo Sistema</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-        /* ... existing styles ... */
-        .facility {
-            padding: 15px;
-            margin-bottom: 20px;
-            border: 1px solid #ccc;
-            box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
-        }
-        .facility h3 { margin-top: 0; }
+        body { font-family: Arial, sans-serif; }
+        .container { max-width: 1000px; margin: auto; padding: 20px; }
+        h1, h2, h3 { color: #333; }
+        #mining-info, #purchase-section { margin-bottom: 30px; }
+        #purchase-result { margin-top: 10px; }
+        .error { color: red; }
+        .success { color: green; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
+        th { background-color: #f4f4f4; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- ... existing content ... -->
+    <h1>Bitcoin, Monero ir Dogecoin Kasimo Sistema</h1>
 
-    <div id="facility-section">
-        <h2>Patalpų Valdymas</h2>
-        <div id="available-facilities"></div>
+    <div id="mining-info">
+        <h2>Bendra hash rate:</h2>
+        <ul id="total-hash-rates"></ul>
+        <h3>Kasimo įranga:</h3>
+        <ul id="mining-items"></ul>
     </div>
 
-    <div id="assign-equipment-section">
-        <h2>Priskirti Įrangą Patalpoms</h2>
-        <form id="assign-form">
-            <label for="facility-select">Pasirinkite Patalpą:</label>
-            <select id="facility-select" required></select>
+    <div id="purchase-section">
+        <h2>Pirkti Kasimo Įrangą</h2>
+        <form id="purchase-form">
+            <label for="shop-items">Pasirinkite įrangą:</label>
+            <select id="shop-items" name="item_id" required>
+                <option value="">Pasirinkite įrangą</option>
+            </select>
             <br><br>
-            <label for="equipment-select">Pasirinkite Įrangą:</label>
-            <select id="equipment-select" required></select>
+            <label for="quantity">Kiekis:</label>
+            <input type="number" id="quantity" name="quantity" min="1" value="1" required>
             <br><br>
-            <label for="assign-quantity">Kiekis:</label>
-            <input type="number" id="assign-quantity" min="1" value="1" required>
-            <br><br>
-            <button type="submit" class="button">Priskirti</button>
+            <input type="hidden" id="csrf_token" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+            <button type="submit" id="buy-button">Pirkti</button>
         </form>
-        <div id="assign-result"></div>
+        <div id="purchase-result"></div>
+    </div>
+
+    <div id="statistics-section">
+        <h2>Kasimo Statistika</h2>
+        <a href="statistics.php">Peržiūrėti Statistiką</a>
     </div>
 </div>
 
@@ -66,7 +75,7 @@ function fetchMiningInfo() {
 
             $('#mining-items').empty();
             data.mining_items.forEach(function(item) {
-                $('#mining-items').append('<li>' + item.item_name + ' - ' + item.hash_rate + ' H/s x ' + item.quantity + ' (' + item.cryptocurrency + ') Patalpoje: ' + item.facility_name + '</li>');
+                $('#mining-items').append('<li>' + item.item_name + ' - ' + item.hash_rate + ' H/s x ' + item.quantity + ' (' + item.cryptocurrency + ')</li>');
             });
         },
         error: function(xhr) {
@@ -93,74 +102,9 @@ function fetchShopItems() {
     });
 }
 
-function fetchFacilities() {
-    $.ajax({
-        url: 'get_facilities.php',
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            var container = $('#available-facilities');
-            container.empty();
-            data.facilities.forEach(function(facility) {
-                var facilityDiv = $('<div class="facility"></div>');
-                facilityDiv.append('<h3>' + facility.name + '</h3>');
-                facilityDiv.append('<p>Tipas: ' + facility.type + '</p>');
-                facilityDiv.append('<p>Kaina: ' + facility.price + '</p>');
-                facilityDiv.append('<p>Talpa: ' + facility.capacity + '</p>');
-                if (facility.type === 'rent') {
-                    facilityDiv.append('<p>Nuomos terminas: ' + facility.rental_term + ' savaitės</p>');
-                    facilityDiv.append('<p>Nutraukimo bauda: ' + facility.early_termination_fee + '</p>');
-                }
-                facilityDiv.append('<button class="button rent-button" data-facility-id="' + facility.id + '">Įsigyti</button>');
-                container.append(facilityDiv);
-            });
-        },
-        error: function(xhr) {
-            console.error('Klaida gaunant patalpas:', xhr.responseText);
-        }
-    });
-}
-
-function fetchUserFacilities() {
-    $.ajax({
-        url: 'get_user_facilities.php',
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            $('#facility-select').empty();
-            data.user_facilities.forEach(function(facility) {
-                $('#facility-select').append('<option value="' + facility.user_facility_id + '">' + facility.name + ' (Talpa: ' + facility.capacity + ')</option>');
-            });
-        },
-        error: function(xhr) {
-            console.error('Klaida gaunant vartotojo patalpas:', xhr.responseText);
-        }
-    });
-}
-
-function fetchUserEquipment() {
-    $.ajax({
-        url: 'get_user_equipment.php',
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            $('#equipment-select').empty();
-            data.user_equipment.forEach(function(equipment) {
-                $('#equipment-select').append('<option value="' + equipment.item_id + '">' + equipment.item_name + ' (Turima: ' + equipment.quantity + ')</option>');
-            });
-        },
-        error: function(xhr) {
-            console.error('Klaida gaunant vartotojo įrangą:', xhr.responseText);
-        }
-    });
-}
-
 $(document).ready(function() {
     fetchMiningInfo();
     fetchShopItems();
-    fetchFacilities();
-    fetchUserFacilities();
-    fetchUserEquipment();
 
     $('#purchase-form').submit(function(event) {
         event.preventDefault();
@@ -193,7 +137,6 @@ $(document).ready(function() {
                 if (response.success) {
                     $('#purchase-result').text(response.success).removeClass('error').addClass('success');
                     fetchMiningInfo();
-                    fetchUserEquipment();
                 } else if (response.error) {
                     $('#purchase-result').text('Klaida: ' + response.error).removeClass('success').addClass('error');
                 }
@@ -204,86 +147,6 @@ $(document).ready(function() {
                     error = xhr.responseJSON.error;
                 }
                 $('#purchase-result').text('Klaida: ' + error).removeClass('success').addClass('error');
-            }
-        });
-    });
-
-    $(document).on('click', '.rent-button', function() {
-        var facility_id = $(this).data('facility-id');
-        var csrf_token = '<?php echo $csrf_token; ?>';
-
-        $.ajax({
-            url: 'rent_facility.php',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                facility_id: facility_id,
-                csrf_token: csrf_token
-            }),
-            dataType: 'json',
-            success: function(response) {
-                if (response.success) {
-                    alert(response.success);
-                    fetchFacilities();
-                    fetchUserFacilities();
-                } else if (response.error) {
-                    alert('Klaida: ' + response.error);
-                }
-            },
-            error: function(xhr) {
-                var error = 'Nepavyko įsigyti patalpos';
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    error = xhr.responseJSON.error;
-                }
-                alert('Klaida: ' + error);
-            }
-        });
-    });
-
-    $('#assign-form').submit(function(event) {
-        event.preventDefault();
-
-        var facility_id = $('#facility-select').val();
-        var item_id = $('#equipment-select').val();
-        var quantity = $('#assign-quantity').val();
-        var csrf_token = '<?php echo $csrf_token; ?>';
-
-        if (!facility_id || !item_id) {
-            alert('Pasirinkite patalpą ir įrangą');
-            return;
-        }
-
-        if (quantity < 1) {
-            alert('Kiekis turi būti bent 1');
-            return;
-        }
-
-        $.ajax({
-            url: 'assign_equipment.php',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                facility_id: facility_id,
-                item_id: item_id,
-                quantity: quantity,
-                csrf_token: csrf_token
-            }),
-            dataType: 'json',
-            success: function(response) {
-                if (response.success) {
-                    $('#assign-result').text(response.success).removeClass('error').addClass('success');
-                    fetchMiningInfo();
-                    fetchUserEquipment();
-                } else if (response.error) {
-                    $('#assign-result').text('Klaida: ' + response.error).removeClass('success').addClass('error');
-                }
-            },
-            error: function(xhr) {
-                var error = 'Nepavyko priskirti įrangos';
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    error = xhr.responseJSON.error;
-                }
-                $('#assign-result').text('Klaida: ' + error).removeClass('success').addClass('error');
             }
         });
     });
